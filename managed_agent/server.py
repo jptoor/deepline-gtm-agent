@@ -32,6 +32,7 @@ from pydantic import BaseModel, Field
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from deepline_gtm_agent.formatting import md_to_slack, truncate_for_slack
 from deepline_gtm_agent.v2_client import DeeplineV2Client, extract_text_from_stream_chunk
+from managed_agent.config import config_summary, deepline_host
 from managed_agent.workflow_presets import get_workflow_preset, list_workflow_presets
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
@@ -144,9 +145,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Deepline GTM Native Agent", version="2.0.0", lifespan=lifespan)
 
 _cors_raw = os.environ.get("CORS_ORIGINS", "")
+_cors_origins = [o.strip() for o in _cors_raw.split(",") if o.strip() and o.strip() != "*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in _cors_raw.split(",") if o.strip()],
+    allow_origins=_cors_origins,
     allow_methods=["GET", "POST"],
     allow_headers=["Authorization", "Content-Type"],
 )
@@ -624,14 +626,23 @@ async def _collect_native_reply(payload: dict[str, Any]) -> str:
 
 @app.get("/health")
 async def health():
+    checks = config_summary()
     body = {
         "status": "ok" if os.environ.get("DEEPLINE_API_KEY") else "needs setup",
         "agent": "deepline-gtm-native-v2",
         "deepline": "configured" if os.environ.get("DEEPLINE_API_KEY") else "missing DEEPLINE_API_KEY",
-        "host": os.environ.get("DEEPLINE_HOST_URL") or os.environ.get("DEEPLINE_API_BASE_URL") or "https://code.deepline.com",
+        "host": deepline_host(),
         "slack": "configured" if os.environ.get("SLACK_BOT_TOKEN") else "not configured",
+        "config_status": checks["status"],
     }
     return JSONResponse(body, status_code=200 if os.environ.get("DEEPLINE_API_KEY") else 503)
+
+
+@app.get("/doctor")
+async def doctor():
+    """Return non-secret setup diagnostics for the broker boundary."""
+    summary = config_summary()
+    return JSONResponse(summary, status_code=200 if summary["status"] != "error" else 503)
 
 
 @app.get("/workflow-presets")

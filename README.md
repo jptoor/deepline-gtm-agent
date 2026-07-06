@@ -72,6 +72,18 @@ Deepline integrations, enrichment providers, CRM, outreach, and research tools
 
 Configure access with environment variables and call the Deepline v2 SDK/API directly. Managed sessions should not depend on local Deepline CLI state.
 
+## Boundary
+
+This repo should stay thin. It owns:
+
+- REST, web chat, and Slack transport
+- Slack request verification and formatting
+- optional bearer auth for public chat endpoints
+- CORS and deployment setup checks
+- prompt/tool bounds that steer requests into Deepline
+
+Deepline API owns provider routing, plays, workflows, enrichment, CRM/outreach actions, credentials, billing, run state, and workflow observability. Do not copy those systems into this agent.
+
 ## Hermes Compatibility
 
 This repo also includes `hermes-agent-pack/`, the compatibility layer for running the Deepline GTM agent inside Hermes on a persistent Sprite/Fly-style workspace.
@@ -108,6 +120,16 @@ python tests/run_evals.py \
 ### Web chat
 
 Run `python managed_agent/server.py` and open `http://localhost:8000`.
+
+### Setup checks
+
+Use `/doctor` to verify non-secret deployment configuration:
+
+```bash
+curl http://localhost:8000/doctor
+```
+
+The response reports missing auth, wildcard CORS, Slack setup, and unsafe local/live-write combinations without returning API keys or tokens.
 
 ### REST
 
@@ -159,7 +181,7 @@ See [SETUP.md](SETUP.md) for Railway and Slack setup. Required production variab
 | `DEEPLINE_API_KEY` | Yes | Deepline v2 API key |
 | `PORT` | Yes | Usually `8000` |
 | `API_KEY` | Optional | Protects `/chat` endpoints with bearer auth |
-| `CORS_ORIGINS` | Optional | Comma-separated allowed origins |
+| `CORS_ORIGINS` | Optional | Comma-separated allowed origins; empty disables browser CORS |
 | `SLACK_BOT_TOKEN` | For Slack | Slack bot token |
 | `SLACK_SIGNING_SECRET` | For Slack | Slack request signing secret |
 | `REDIS_URL` | Optional | Persistent Slack thread history |

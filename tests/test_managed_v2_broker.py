@@ -72,6 +72,23 @@ def test_default_cors_does_not_use_wildcard():
 
     assert 'os.environ.get("CORS_ORIGINS", "")' in source
     assert 'os.environ.get("CORS_ORIGINS", "*")' not in source
+    assert 'o.strip() != "*"' in source
+
+
+def test_broker_boundary_keeps_deepline_execution_in_deepline_api():
+    managed_sources = "\n".join(
+        path.read_text()
+        for path in Path("managed_agent").glob("*.py")
+        if path.name != "workflow_presets.py"
+    )
+
+    assert "startPlayRun" not in managed_sources
+    assert "class ProviderAdapter" not in managed_sources
+    assert "provider_adapter" not in managed_sources
+    assert "execute_waterfall" not in managed_sources
+    assert "waterfall_providers" not in managed_sources
+    assert "run history" not in managed_sources.lower()
+    assert "/api/v2/integrations/{tool_id}/execute" not in managed_sources
 
 
 def test_health_fails_when_deepline_key_missing(monkeypatch):
@@ -83,6 +100,31 @@ def test_health_fails_when_deepline_key_missing(monkeypatch):
 
     assert response.status_code == 503
     assert response.json()["status"] == "needs setup"
+    assert response.json()["config_status"] == "error"
+
+
+def test_doctor_reports_non_secret_setup_checks(monkeypatch):
+    monkeypatch.setenv("DEEPLINE_API_KEY", "dlp_test_secret")
+    monkeypatch.setenv("API_KEY", "broker-secret")
+    monkeypatch.setenv("CORS_ORIGINS", "https://app.example")
+
+    from managed_agent.server import app
+
+    response = TestClient(app).get("/doctor")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["host"] == "https://code.deepline.com"
+    assert "dlp_test_secret" not in response.text
+    assert "broker-secret" not in response.text
+    assert {check["name"] for check in body["checks"]} >= {
+        "deepline_api_key",
+        "chat_auth",
+        "cors",
+        "local_live_writes",
+        "slack",
+    }
 
 
 def test_slack_signature_fails_closed_without_secret(monkeypatch):

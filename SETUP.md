@@ -159,6 +159,14 @@ curl https://<your-railway-domain>/health
 
 Expected status is `ok` once required configuration is present.
 
+Check non-secret setup diagnostics:
+
+```bash
+curl https://<your-railway-domain>/doctor
+```
+
+`/doctor` should not return API keys or tokens. It reports missing Deepline auth, missing chat auth, wildcard CORS, Slack setup, and unsafe local/live-write combinations.
+
 Test chat:
 
 ```bash
@@ -180,11 +188,12 @@ If `API_KEY` is set, include:
 | `DEEPLINE_API_KEY` | Yes | Deepline v2 API key from [code.deepline.com](https://code.deepline.com) |
 | `PORT` | Yes | Server port, usually `8000` |
 | `API_KEY` | Optional | Protects `/chat` endpoints with bearer auth |
-| `CORS_ORIGINS` | Optional | Comma-separated allowed origins; defaults to `*` |
+| `CORS_ORIGINS` | Optional | Comma-separated allowed origins; empty disables browser CORS |
 | `REDIS_URL` | Optional | Enables persistent Slack conversation history |
 | `SLACK_BOT_TOKEN` | For Slack | Bot token from Slack OAuth |
 | `SLACK_SIGNING_SECRET` | For Slack | Slack signing secret |
 | `SLACK_CLIENT_ID` | Optional | Used by Slack OAuth install flow |
 | `SLACK_CLIENT_SECRET` | Optional | Used by Slack OAuth install flow |
+| `DEEPLINE_GTM_LIVE_WRITES` | Optional | Enables live-write mode for approved workflows; leave unset by default |
 
 `ANTHROPIC_API_KEY`, `MANAGED_AGENT_ID`, and `MANAGED_ENVIRONMENT_ID` are optional and only needed for manual Anthropic Managed Agent experiments.
