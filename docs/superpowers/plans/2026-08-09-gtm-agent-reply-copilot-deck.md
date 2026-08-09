@@ -4,7 +4,7 @@
 
 **Goal:** Update the Deepline GTM Agent teardown deck with a first-principles framework and a responsive architecture diagram for a Lemlist Reply Copilot.
 
-**Architecture:** Keep the artifact as one self-contained HTML file. Add semantic HTML/CSS components for the six-question framework and the workflow stages, plus an inline SVG system diagram connecting Slack, Eve, Deepline, HubSpot, Notion, and Lemlist. Reuse the deck's existing theme variables and navigation behavior.
+**Architecture:** Keep the artifact as one self-contained HTML file. Add semantic HTML/CSS components for the six-question framework and the workflow stages, plus an Excalidraw-sourced inline SVG diagram showing Lemlist → Deepline webhook → customer database → frontend agent and downstream actions. Reuse the deck's existing theme variables and make keyboard navigation advance exactly one slide per discrete keypress.
 
 **Tech Stack:** Static HTML, CSS custom properties, inline SVG, vanilla JavaScript, browser rendering.
 
@@ -13,7 +13,7 @@
 - Preserve the current deck's typography, palette, borders, slide proportions, theme behavior, keyboard navigation, and editorial tone.
 - The workflow is specifically a Lemlist Reply Copilot.
 - The MVP auto-drafts but does not auto-send; Slack approval is required before Lemlist sends.
-- Deepline is the tools-and-compute substrate, Slack is the human interface, HubSpot is CRM context and state, Notion is durable output storage, and Lemlist is inbound and outbound email execution.
+- Deepline owns webhook receipt, the customer database, tools, state, and provenance. Slack is the human interface, HubSpot is CRM context and state, Notion is durable output storage, Lemlist is inbound and outbound email execution, and Vercel hosts only the frontend agent.
 - Monitors appear only as a later trigger option.
 - The page must remain self-contained and readable in light theme, dark theme, desktop width, and mobile width.
 
@@ -59,7 +59,7 @@ Expected: `framework ok`.
 
 **Interfaces:**
 - Consumes: The framework slide from Task 1 and the existing slide/navigation system.
-- Produces: `.agent-architecture`, `.system-map`, `.workflow-strip`, `.workflow-step`, `.runtime-call`, and inline SVG connector markup.
+- Produces: `.excalidraw-wrap`, `.excalidraw-map`, `.workflow-strip`, `.workflow-step`, `.runtime-call`, and inline SVG connector markup sourced from the Excalidraw scene.
 
 - [ ] **Step 1: Add diagram and workflow styles**
 
@@ -70,25 +70,27 @@ Use existing CSS variables for color and borders. Add dedicated variables only f
 The slide must include:
 
 ```text
-Lemlist reply → Eve agent → Deepline + HubSpot context
-                           ↓
-                 Slack approve / edit / reject
-                           ↓
-            Lemlist send + HubSpot log + Notion memory
+Lemlist reply → Deepline webhook → Customer DB
+                                      ↓
+                            Frontend agent (Vercel hosts)
+                                      ↓
+                           Slack approve / edit / reject
+                                      ↓
+                 Lemlist send + HubSpot log + Notion output
 ```
 
 Show five workflow stages: `Reply arrives`, `Classify`, `Gather context`, `Draft + approve`, and `Send + learn`. List the classifications `positive`, `question`, `objection`, `not interested`, and `OOO`.
 
 - [ ] **Step 3: Add the runtime recommendation**
 
-Add a concise callout: ship on Vercel Eve now with Claude as the model; reconsider Claude Managed Agents when long-running sessions, managed credentials, per-tool permissions, or centralized audit traces become necessary.
+Add a concise callout: Vercel hosts the frontend agent only; Deepline owns webhook receipt, customer data, connected tools, provenance, and the feedback loop.
 
 - [ ] **Step 4: Verify required systems and safety boundary**
 
 Run:
 
 ```bash
-node -e 'const fs=require("fs");const s=fs.readFileSync("/Users/jaitoor/Downloads/Deepline-GTM-Agent-Teardown.html","utf8");for(const x of ["Slack","Vercel Eve","Deepline","HubSpot","Notion","Lemlist","approve","does not auto-send","Monitors later"])if(!s.includes(x))throw new Error("missing "+x);console.log("architecture ok")'
+node -e 'const fs=require("fs");const s=fs.readFileSync("/Users/jaitoor/Downloads/Deepline-GTM-Agent-Teardown.html","utf8");for(const x of ["Slack","Vercel hosts only","Deepline webhook","Customer DB","HubSpot","Notion","Lemlist","approve","does not auto-send","Monitors later"])if(!s.includes(x))throw new Error("missing "+x);console.log("architecture ok")'
 ```
 
 Expected: `architecture ok`.
@@ -126,4 +128,4 @@ Toggle `data-theme="light"` and `data-theme="dark"` on the root element. Confirm
 
 - [ ] **Step 5: Verify keyboard navigation**
 
-Use ArrowRight and ArrowLeft across the new slide and confirm the current-slide tracking remains correct.
+Use ArrowRight and ArrowLeft across the new slide and confirm each discrete press moves exactly one slide, while repeated keydown events are ignored.

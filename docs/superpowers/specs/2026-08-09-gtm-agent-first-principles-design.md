@@ -45,49 +45,52 @@ The slide should read as a conceptual framework, not as six implementation steps
 
 Create a native HTML/CSS/SVG architecture diagram that matches the existing restrained editorial deck. It must remain legible in light and dark themes and adapt to narrow screens.
 
-The diagram uses a strong central spine rather than a generic grid of cards:
+The diagram uses a left-to-right Excalidraw workflow with the customer database as the central state layer:
 
-- **Slack** at the top is the human interface: review the classification and evidence, then approve, edit, or reject the draft.
-- **Vercel Eve agent** is the orchestrator and runtime.
-- **Deepline** is the tools-and-compute substrate, connecting the agent to enrichment and source data rather than acting as a passive database.
+- **Lemlist** sends a new-reply webhook to Deepline.
+- **Deepline webhook receive** normalizes the event and writes the reply thread to the customer database.
+- **Customer database** is the source of truth for every later read, decision, writeback, and feedback event.
+- **Deepline tools** enrich the customer database from every connected source.
+- **Agent frontend** reads customer-database context and drafts the response; Vercel only hosts this frontend agent.
+- **Slack** is the human gate: review the classification and evidence, then approve, edit, or reject the draft.
 - **HubSpot** provides ownership, lifecycle, suppression, and prior-activity context and receives the disposition and activity after approval.
 - **Notion** stores durable reply-handling guidance, account research, and workflow learnings.
-- **Lemlist** supplies the inbound reply and sends the approved response.
+- **Lemlist** sends the approved response.
 
 Connections must show direction and meaning:
 
-- New Lemlist reply / HubSpot state → agent
-- Agent ↔ Deepline tools and data
-- Agent ↔ Slack approval loop
+- Lemlist reply → Deepline webhook → customer database
+- Deepline tools and HubSpot state → customer database
+- Customer database → frontend agent → Slack approval gate
 - Approved response → Lemlist; disposition and context → HubSpot and Notion
+- Classification, edits, outcome, and provenance → customer database feedback loop
 
 ### Supporting copy
 
 The architecture slide should explicitly describe the single workflow:
 
-1. A new reply arrives from Lemlist.
-2. The agent classifies it as positive, question, objection, not interested, or out of office.
-3. Deepline gathers person and company context while HubSpot supplies ownership, lifecycle, prior activity, and suppression state.
-4. The agent drafts a grounded response and recommends the next action.
+1. A new reply arrives from Lemlist at a Deepline webhook.
+2. Deepline normalizes the event and writes the thread to the customer database.
+3. Deepline gathers person and company context while HubSpot supplies ownership, lifecycle, prior activity, and suppression state; the results return to the customer database.
+4. The frontend agent reads that context, classifies the reply as positive, question, objection, not interested, or out of office, drafts a grounded response, and recommends the next action.
 5. Slack presents the reply, evidence, classification, and draft for approval, editing, or rejection.
-6. On approval, Lemlist sends the response, HubSpot records the disposition and activity, and Notion retains durable research or workflow learnings when useful.
+6. On approval, Lemlist sends the response, HubSpot records the disposition and activity, Notion retains durable outputs when useful, and the run summary returns to the customer database.
 
 The MVP auto-drafts but does not auto-send. Human approval in Slack is required before Lemlist sends. Low-risk reply categories may graduate to auto-send only after observed edits demonstrate reliable behavior. Monitors are not required for the MVP and may later supply additional trigger types through the same boundary.
 
 ## Runtime Decision
 
-Use **Vercel Eve today, with Claude as the model**.
+Use **Vercel to host the frontend agent only**.
 
 Reasons:
 
-- Eve already has a minimal Slack-agent starter with tools and skills.
-- Vercel Connect handles Slack authentication, while AI Gateway handles model access.
-- The repository already contains an `eve_agent` implementation path, reducing time to a working build.
-- The architecture remains model-provider-flexible while allowing Claude to power reasoning.
+- Deepline owns webhook receipt, normalization, the customer database, tool connections, and provenance.
+- The frontend agent is stateless with respect to customer and workflow state; it reads from and writes through Deepline.
+- This keeps the durable product boundary inside Deepline while using Vercel for straightforward frontend hosting.
 
 Claude Managed Agents is a future option when the workflow needs long-running durable sessions, platform-managed credential vaults, per-tool permissions, or centralized audit traces. It is currently a public-beta platform surface and is not necessary for the narrow first workflow.
 
-The slide should present this as a decisive sequence: “Ship on Eve now; reassess Managed Agents after the workflow proves it needs a heavier managed runtime.”
+The slide should present this boundary explicitly: “Vercel hosts the frontend agent; Deepline owns the data, tools, state, and workflow.”
 
 ## Visual and Interaction Requirements
 
@@ -103,8 +106,8 @@ The slide should present this as a decisive sequence: “Ship on Eve now; reasse
 
 - The “Every build needs the same six things.” wording is present.
 - The six questions map correctly to enrichment, triggers, tools, qualification, and rep surfaces.
-- The architecture visibly includes Deepline, Slack, Notion, HubSpot, Lemlist, and Vercel Eve.
-- The diagram makes Deepline the data/tool integration layer and Slack the human interface.
+- The architecture visibly includes Deepline webhook receipt, customer database, Deepline tools, Slack, Notion, HubSpot, Lemlist, and Vercel frontend hosting.
+- The diagram makes the customer database the central state layer, Deepline the data/tool integration layer, and Slack the human interface.
 - The workflow is specifically a Lemlist Reply Copilot.
 - Classification and qualification happen before drafting or sending.
 - Human approval in Slack happens before Lemlist execution.
@@ -112,7 +115,8 @@ The slide should present this as a decisive sequence: “Ship on Eve now; reasse
 - Auto-drafting is clearly distinguished from future autonomous auto-send.
 - Monitors are described only as a later trigger option.
 - The page remains self-contained, responsive, theme-compatible, and keyboard navigable.
-- The runtime recommendation clearly favors Vercel Eve for the first build while naming the conditions that would justify Claude Managed Agents later.
+- The hosting boundary clearly states that Vercel hosts only the frontend agent while Deepline owns the durable workflow.
+- Every discrete arrow or PageUp/PageDown keypress moves exactly one slide and held-key repeats are ignored.
 
 ## Verification
 
