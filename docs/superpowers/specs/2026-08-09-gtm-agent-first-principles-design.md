@@ -2,7 +2,7 @@
 
 ## Goal
 
-Extend `Deepline-GTM-Agent-Teardown.html` with a first-principles framework and a concrete architecture for the first GTM agent Deepline should ship. The section must connect the teardown's shared lessons to one narrow implementation: a hiring-signal warm-outbound workflow.
+Extend `Deepline-GTM-Agent-Teardown.html` with a first-principles framework and a concrete architecture for the first GTM agent Deepline should ship. The section must connect the teardown's shared lessons to one narrow implementation: a Lemlist Reply Copilot.
 
 The result should answer two questions for an internal Deepline audience:
 
@@ -30,11 +30,11 @@ Replace the generic numbered checklist with six questions. “What” and “How
 
 | Question | Capability | Meaning in the first build |
 | --- | --- | --- |
-| Who | Enrichment | Identify the account, relevant buyer, role, and evidence behind the match. |
-| When | Trigger | Start when Deepline finds a qualified hiring signal. Monitors may become an additional trigger later. |
-| What | Tools for context | Let the agent retrieve company, person, hiring, CRM, and source data. |
-| How | Tools for action | Let the agent write outputs and prepare or launch downstream actions. |
-| Why | Filters and qualification | Decide whether the signal is relevant and whether outreach is appropriate before drafting. |
+| Who | Enrichment | Identify the sender, account, role, ownership, and conversation history behind the reply. |
+| When | Trigger | Start when a new Lemlist reply arrives. Monitors may become an additional trigger later. |
+| What | Tools for context | Let the agent retrieve the reply thread, company and person data, CRM state, and supporting sources. |
+| How | Tools for action | Let the agent classify the reply, draft a response, request approval, send, and update downstream systems. |
+| Why | Filters and qualification | Decide whether the reply is positive, a question, an objection, not interested, or out of office before drafting. |
 | Where | Rep surface | Put decisions and approvals where the team works: Slack first, HubSpot as CRM, with a custom app only if later needed. |
 
 The slide should read as a conceptual framework, not as six implementation steps.
@@ -47,31 +47,32 @@ Create a native HTML/CSS/SVG architecture diagram that matches the existing rest
 
 The diagram uses a strong central spine rather than a generic grid of cards:
 
-- **Slack** at the top is the human interface: request, review, approve, edit, or reject.
+- **Slack** at the top is the human interface: review the classification and evidence, then approve, edit, or reject the draft.
 - **Vercel Eve agent** is the orchestrator and runtime.
 - **Deepline** is the tools-and-compute substrate, connecting the agent to enrichment and source data rather than acting as a passive database.
-- **HubSpot** has two roles: inbound/CRM context into the workflow and approved activity/state written back to the CRM.
-- **Notion** stores durable research and campaign outputs.
-- **Lemlist** receives approved outbound drafts or campaigns for execution.
+- **HubSpot** provides ownership, lifecycle, suppression, and prior-activity context and receives the disposition and activity after approval.
+- **Notion** stores durable reply-handling guidance, account research, and workflow learnings.
+- **Lemlist** supplies the inbound reply and sends the approved response.
 
 Connections must show direction and meaning:
 
-- Hiring signal / HubSpot state → agent
+- New Lemlist reply / HubSpot state → agent
 - Agent ↔ Deepline tools and data
 - Agent ↔ Slack approval loop
-- Approved output → Notion, HubSpot, and Lemlist
+- Approved response → Lemlist; disposition and context → HubSpot and Notion
 
 ### Supporting copy
 
 The architecture slide should explicitly describe the single workflow:
 
-1. Deepline detects a relevant hiring signal and enriches the company and likely buyer.
-2. The agent checks HubSpot for ownership, lifecycle, prior activity, suppression, and duplicates.
-3. The agent qualifies the signal and drafts grounded outreach with sources.
-4. Slack presents the evidence, reasoning, and draft for approval or editing.
-5. On approval, the agent stores research in Notion, updates HubSpot, and sends the draft to Lemlist.
+1. A new reply arrives from Lemlist.
+2. The agent classifies it as positive, question, objection, not interested, or out of office.
+3. Deepline gathers person and company context while HubSpot supplies ownership, lifecycle, prior activity, and suppression state.
+4. The agent drafts a grounded response and recommends the next action.
+5. Slack presents the reply, evidence, classification, and draft for approval, editing, or rejection.
+6. On approval, Lemlist sends the response, HubSpot records the disposition and activity, and Notion retains durable research or workflow learnings when useful.
 
-Monitors are not required for the MVP. They may later supply recurring or event-driven hiring signals through the same trigger boundary.
+The MVP auto-drafts but does not auto-send. Human approval in Slack is required before Lemlist sends. Low-risk reply categories may graduate to auto-send only after observed edits demonstrate reliable behavior. Monitors are not required for the MVP and may later supply additional trigger types through the same boundary.
 
 ## Runtime Decision
 
@@ -104,10 +105,11 @@ The slide should present this as a decisive sequence: “Ship on Eve now; reasse
 - The six questions map correctly to enrichment, triggers, tools, qualification, and rep surfaces.
 - The architecture visibly includes Deepline, Slack, Notion, HubSpot, Lemlist, and Vercel Eve.
 - The diagram makes Deepline the data/tool integration layer and Slack the human interface.
-- The workflow is specifically a hiring-signal warm-outbound play.
-- Qualification happens before drafting or sending.
+- The workflow is specifically a Lemlist Reply Copilot.
+- Classification and qualification happen before drafting or sending.
 - Human approval in Slack happens before Lemlist execution.
 - Notion and HubSpot receive durable outputs/state.
+- Auto-drafting is clearly distinguished from future autonomous auto-send.
 - Monitors are described only as a later trigger option.
 - The page remains self-contained, responsive, theme-compatible, and keyboard navigable.
 - The runtime recommendation clearly favors Vercel Eve for the first build while naming the conditions that would justify Claude Managed Agents later.
