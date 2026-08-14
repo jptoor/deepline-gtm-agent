@@ -6,9 +6,9 @@ Generated from source comments and type declarations by `scripts/generate-play-s
 
 | Field | Value |
 |---|---|
-| SDK version | `0.1.254` |
+| SDK version | `0.2.0` |
 | SDK HTTP API | `v2` |
-| Checked-in SDK fallback | `0.1.254` |
+| Checked-in SDK fallback | `0.2.0` |
 | Minimum supported SDK | `0.1.53` |
 | Deprecated below | `0.1.219` |
 | Generated sources | `src/lib/sdk/api-routes.ts`<br />`sdk/src/types.ts`<br />`sdk/src/client.ts`<br />`sdk/src/release.ts` |
@@ -192,6 +192,8 @@ while True:
 | `GET` | `/api/v2/integrations/:toolId` | `getTool` | Describe one provider-backed tool by integration id. | `src/app/api/v2/integrations/[toolId]/route.ts` |
 | `POST` | `/api/v2/integrations/:toolId/execute` | `executeTool`<br />`executeToolRaw` | Execute one provider-backed tool call through Deepline. | `src/app/api/v2/integrations/execute/route.ts` |
 | `GET` | `/api/v2/integrations/:toolId/get` | `getTool` | Describe one provider-backed tool, including schema, pricing, guidance, and extractors. | `src/app/api/v2/integrations/get/route.ts` |
+| `POST` | `/api/v2/integrations/:toolId/quote` | `quoteInferenceTool` | SDK-facing route. | `src/app/api/v2/integrations/[toolId]/quote/route.ts`<br />`src/lib/deeplineagent/quote-service.ts`<br />`src/lib/deeplineagent/quote.ts` |
+| `POST` | `/api/v2/integrations/connect` | `connectNotificationSlack` | SDK-facing route. | `src/app/api/v2/integrations/connect/route.ts` |
 | `GET` | `/api/v2/integrations/list` | `searchTools` | Compatibility discovery route for integration/tool listing. | `src/app/api/v2/integrations/list/route.ts` |
 | `GET` | `/api/v2/tools` | `listTools` | List callable provider/tool definitions. | `src/app/api/v2/tools/route.ts` |
 | `GET` | `/api/v2/tools/providers` | `listProviders` | SDK-facing route. | `src/app/api/v2/tools/providers/route.ts` |
@@ -212,8 +214,10 @@ while True:
 | `POST` | `/api/v2/plays/run` | `startPlayRun`<br />`startPlayRunFromBundle`<br />`runPlay` | Start a saved, prebuilt, or artifact-backed play run. | `src/app/api/v2/plays/run/route.ts` |
 | `GET` | `/api/v2/runs` | `runs.list`<br />`listRuns` | List runs with filters such as play name and status. | `src/app/api/v2/runs/route.ts` |
 | `GET` | `/api/v2/runs/:runId` | `runs.get`<br />`getRunStatus`<br />`getPlayStatus` | Read canonical status, result, outputs, and run package. | `src/app/api/v2/runs/[runId]/route.ts` |
+| `GET` | `/api/v2/runs/:runId/input` | `runs.input`<br />`getRunInput` | SDK-facing route. | `src/app/api/v2/runs/[runId]/input/route.ts` |
 | `GET` | `/api/v2/runs/:runId/logs` | `runs.logs`<br />`getRunLogs` | SDK-facing route. | `src/app/api/v2/runs/[runId]/logs/route.ts` |
 | `POST` | `/api/v2/runs/:runId/observe-grant` | `runs.tail`<br />`tailRun`<br />`runPlay` | SDK-facing route. | `src/app/api/v2/runs/[runId]/observe-grant/route.ts` |
+| `POST` | `/api/v2/runs/:runId/rerun` | `runs.rerun`<br />`rerun` | SDK-facing route. | `src/app/api/v2/runs/[runId]/rerun/route.ts` |
 | `POST` | `/api/v2/runs/:runId/stop` | `runs.stop`<br />`stopRun`<br />`cancelPlay`<br />`stopPlay` | Stop a running or waiting play run. | `src/app/api/v2/runs/[runId]/stop/route.ts` |
 | `GET` | `/api/v2/runs/:runId/tail` | `runs.tail`<br />`tailRun` | Stream canonical run events over SSE. | `src/app/api/v2/runs/[runId]/tail/route.ts` |
 
@@ -249,11 +253,16 @@ while True:
 | `GET` | `/api/v2/billing/catalog/current` | `billing.plans`<br />`getBillingPlans`<br />`billing plans` | SDK-facing route. | `src/app/api/v2/billing/catalog/current/route.ts` |
 | `POST` | `/api/v2/billing/checkout` | `billing checkout` | SDK-facing route. | `src/app/api/v2/billing/checkout/route.ts` |
 | `POST` | `/api/v2/billing/checkout/verify` | `billing redeem` | SDK-facing route. | `src/app/api/v2/billing/checkout/verify/route.ts` |
+| `POST` | `/api/v2/billing/credit-purchases` | `purchaseTargetBillingCredits` | SDK-facing route. | `src/app/api/v2/billing/credit-purchases/route.ts` |
 | `GET` | `/api/v2/billing/invoices` | `billing.invoices.list`<br />`listBillingInvoices`<br />`billing invoices` | SDK-facing route. | `src/app/api/v2/billing/invoices/route.ts` |
 | `GET` | `/api/v2/billing/ledger` | `billing history` | SDK-facing route. | `src/app/api/v2/billing/ledger/route.ts` |
 | `DELETE` | `/api/v2/billing/limit` | `billing limit off` | SDK-facing route. | `src/app/api/v2/billing/limit/route.ts` |
 | `GET` | `/api/v2/billing/limit` | `billing limit` | SDK-facing route. | `src/app/api/v2/billing/limit/route.ts` |
 | `POST` | `/api/v2/billing/limit` | `billing limit set` | SDK-facing route. | `src/app/api/v2/billing/limit/route.ts` |
+| `POST` | `/api/v2/billing/plan-transitions` | `transitionTargetBillingPlan` | SDK-facing route. | `src/app/api/v2/billing/plan-transitions/route.ts` |
+| `GET` | `/api/v2/billing/plans` | `getTargetBillingPlans` | SDK-facing route. | `src/app/api/v2/billing/plans/route.ts` |
+| `POST` | `/api/v2/billing/portal-sessions` | `createTargetBillingPortalSession` | SDK-facing route. | `src/app/api/v2/billing/portal-sessions/route.ts` |
+| `GET` | `/api/v2/billing/status` | `getTargetBillingStatus` | SDK-facing route. | `src/app/api/v2/billing/status/route.ts` |
 | `POST` | `/api/v2/billing/subscription/cancel` | `billing.subscription.cancel`<br />`cancelBillingSubscription`<br />`billing subscription cancel` | SDK-facing route. | `src/app/api/v2/billing/subscription/cancel/route.ts` |
 | `POST` | `/api/v2/billing/subscription/checkout` | `billing subscribe` | SDK-facing route. | `src/app/api/v2/billing/subscription/checkout/route.ts` |
 | `GET` | `/api/v2/billing/subscription/status` | `billing.subscription.status`<br />`getBillingSubscriptionStatus`<br />`billing subscription status` | SDK-facing route. | `src/app/api/v2/billing/subscription/status/route.ts` |
@@ -273,7 +282,16 @@ while True:
 | `GET` | `/api/v2/monitors/deployed/:key` | `monitors get` | SDK-facing route. | `src/app/api/v2/monitors/deployed/[key]/route.ts` |
 | `PATCH` | `/api/v2/monitors/deployed/:key` | `monitors update` | SDK-facing route. | `src/app/api/v2/monitors/deployed/[key]/route.ts` |
 | `POST` | `/api/v2/monitors/deployed/:key/reactivate` | `monitors reactivate` | SDK-facing route. | `src/app/api/v2/monitors/deployed/[key]/reactivate/route.ts` |
+| `POST` | `/api/v2/monitors/deployed/:key/test` | `monitors test` | SDK-facing route. | `src/app/api/v2/monitors/deployed/[key]/test/route.ts` |
+| `POST` | `/api/v2/monitors/deployed/:key/validate` | `monitors validate` | SDK-facing route. | `src/app/api/v2/monitors/deployed/[key]/validate/route.ts` |
+| `POST` | `/api/v2/monitors/setup` | `monitors deploy (provider-specific post-deploy readback)` | SDK-facing route. | `src/app/api/v2/monitors/setup/[tool]/route.ts` |
 | `GET` | `/api/v2/monitors/tools` | `monitors available` | SDK-facing route. | `src/app/api/v2/monitors/tools/route.ts` |
+| `GET` | `/api/v2/notifications` | `getNotifications` | SDK-facing route. | `src/app/api/v2/notifications/route.ts` |
+| `POST` | `/api/v2/notifications` | `createNotification` | SDK-facing route. | `src/app/api/v2/notifications/route.ts` |
+| `DELETE` | `/api/v2/notifications/:notificationId` | `deleteNotification` | SDK-facing route. | `src/app/api/v2/notifications/[notificationId]/route.ts` |
+| `PATCH` | `/api/v2/notifications/:notificationId` | `updateNotification` | SDK-facing route. | `src/app/api/v2/notifications/[notificationId]/route.ts` |
+| `POST` | `/api/v2/notifications/:notificationId/test` | `testNotification` | SDK-facing route. | `src/app/api/v2/notifications/[notificationId]/test/route.ts` |
+| `GET` | `/api/v2/notifications/slack/channels` | `listNotificationChannels` | SDK-facing route. | `src/app/api/v2/notifications/slack/channels/route.ts` |
 | `DELETE` | `/api/v2/plays/:name/share` | `unpublishSharePage` | SDK-facing route. | `src/app/api/v2/plays/[name]/share/route.ts` |
 | `GET` | `/api/v2/plays/:name/share` | `getSharePage` | SDK-facing route. | `src/app/api/v2/plays/[name]/share/route.ts` |
 | `PATCH` | `/api/v2/plays/:name/share` | `updateSharePage` | SDK-facing route. | `src/app/api/v2/plays/[name]/share/route.ts` |
@@ -285,6 +303,15 @@ while True:
 | `POST` | `/api/v2/secrets` | `secrets set` | SDK-facing route. | `src/app/api/v2/secrets/route.ts` |
 | `DELETE` | `/api/v2/secrets/:id` | `secrets delete` | SDK-facing route. | `src/app/api/v2/secrets/[id]/route.ts` |
 | `POST` | `/api/v2/secrets/:id/test` | `secrets test` | SDK-facing route. | `src/app/api/v2/secrets/[id]/test/route.ts` |
+| `DELETE` | `/api/v2/settings/notifications` | `disableNotificationSlack` | SDK-facing route. | `src/app/api/v2/settings/notifications/route.ts` |
+| `GET` | `/api/v2/settings/notifications` | `getNotificationSettings` | SDK-facing route. | `src/app/api/v2/settings/notifications/route.ts` |
+| `PUT` | `/api/v2/settings/notifications` | `setNotificationSlack` | SDK-facing route. | `src/app/api/v2/settings/notifications/route.ts` |
+| `GET` | `/api/v2/settings/notifications/channels` | `listNotificationSlackChannels` | SDK-facing route. | `src/app/api/v2/settings/notifications/channels/route.ts` |
+| `GET` | `/api/v2/settings/notifications/dlq` | `listNotificationDlq` | SDK-facing route. | `src/app/api/v2/settings/notifications/dlq/route.ts` |
+| `GET` | `/api/v2/settings/notifications/dlq/:deliveryId` | `getNotificationDlqDelivery` | SDK-facing route. | `src/app/api/v2/settings/notifications/dlq/[deliveryId]/route.ts` |
+| `POST` | `/api/v2/settings/notifications/dlq/:deliveryId` | `updateNotificationDlqDelivery` | SDK-facing route. | `src/app/api/v2/settings/notifications/dlq/[deliveryId]/route.ts` |
+| `PATCH` | `/api/v2/settings/notifications/subscriptions` | `setNotificationSubscriptions` | SDK-facing route. | `src/app/api/v2/settings/notifications/subscriptions/route.ts` |
+| `POST` | `/api/v2/settings/notifications/test` | `testNotificationSlack` | SDK-facing route. | `src/app/api/v2/settings/notifications/test/route.ts` |
 
 
 ## Recent Compatible API Changes
@@ -293,6 +320,7 @@ These entries come from the compatible SDK/API change ledger and explain additiv
 
 | Change | Reason |
 |---|---|
+| `2026-08-play-run-input-replay` | Adds authenticated GET /api/v2/runs/:runId/input and POST /api/v2/runs/:runId/rerun routes, plus runs.input/getRunInput/runs.rerun/rerun SDK methods and deepline runs get --input / deepline runs rerun commands. These are additive capabil... |
 | `2026-07-sdk-enrich-compiler-source-imports` | Resolves shared enrich-plan compiler imports through TypeScript source paths so server-side MCP callers can reuse the same compiler without relying on built JavaScript artifacts. This is an internal build-resolution change: installed CLI... |
 | `2026-07-play-detached-runtime-progress` | Corrects the customer-visible status and CLI progress wording for a Play that is actively executing in a detached runtime receipt: it reports running rather than waiting, and identifies that execution state instead of incorrectly suggest... |
 | `2026-07-agent-led-cli-onboarding` | Adds setup, skills, and doctor CLI commands, folder-scoped browser-auth persistence, npm-based installation guidance, and scoped update and verification behavior while retiring the separate mutable SDK shell-installer route. This is comp... |
@@ -300,7 +328,6 @@ These entries come from the compatible SDK/API change ledger and explain additiv
 | `2026-07-sdk-enrich-direct-tool-runtime-context` | Makes newly published deepline enrich generated plays type their legacy direct-tool helper against the existing DeeplinePlayRuntimeContext tools capability instead of an incompatible hand-written execute signature. This is a compatible l... |
 | `2026-07-sdk-enrich-no-ambient-pick` | Makes newly published deepline enrich generated plays pass the existing DeeplinePlayRuntimeContext directly to their direct-tool helper instead of relying on TypeScript's ambient Pick utility type. This is a compatible local generated-so... |
 | `2026-07-sdk-play-page-open-opt-in` | Makes newly published deepline plays run and enrich clients print the play page URL by default and require the new --open flag to launch a browser; the retired --no-open flag now fails loudly. The API contract is unchanged: route paths,... |
-| `2026-07-prebuilt-run-system-scope` | Fixes POST /api/v2/plays/run so an explicit prebuilt/<name> reference reads the Deepline system definition even when legacy org data contains the same unqualified name, and rejects explicit revision IDs that belong to another definition.... |
 
 ## Public Types
 
@@ -334,8 +361,11 @@ schema, examples, pricing, and extraction guidance before executing.
 | `usageGuidance` | `{ execute?: string; prefer?: string[]; access?: { extractedLists?: { expression?: string; meaning?: string; }; extractedValues?: { expression?: string; meaning?: string; }; rawToolResponse?: { expression?: string; meaning?: string; }; invalidGetterHint?: string; }; toolExecutionResult?: { type?: 'ToolExecutionResult'; toolResponse?: { raw?: string; meta?: string; }; meta?: string; extractedLists?: \| Array<{ name: string; expression: string; details?: { strategy?: string; rawToolOutputPaths?: string[]; candidatePaths?: string[]; }; }> \| Record< string, { expression: string; details?: { strategy?: string; rawToolOutputPaths?: string[]; candidatePaths?: string[]; }; } >; extractedValues?: \| Array<{ name: string; expression: string; details?: { strategy?: string; rawToolOutputPaths?: string[]; candidatePaths?: string[]; }; }> \| Record< string, { expression: string; details?: { strategy?: string; rawToolOutputPaths?: string[]; candidatePaths?: string[]; }; } >; [key: string]: unknown; }; }` | No | Copyable play-runtime guidance for V2 tool execution results. |
 | `search_score` | `number` | No | Search relevance score returned by ranked tool search. |
 | `search_matches` | `Array<{ field: string; value: string; term?: string; }>` | No | Search match snippets returned by ranked tool search. |
-| `connected` | `boolean` | No | Whether this tool is callable in the current workspace. `false` for a<br />bring-your-own-credential provider (e.g. Apollo) that has not been<br />connected — the agent should offer to connect it rather than call it. |
-| `credentialStatus` | `'managed' \| 'connected' \| 'requires_connection'` | No | Connection status for discovery: `managed` (Deepline-run credentials),<br />`connected` (your own credential is connected), or `requires_connection`<br />(BYO provider not yet connected in this workspace). |
+| `connected` | `boolean` | No | Whether this tool is callable in the current workspace. `false` for a<br />bring-your-own-credential provider that has not been connected. |
+| `callable` | `boolean` | No | Whether the tool can be executed. Exact lookup may return non-callable deprecated aliases. |
+| `deprecated` | `boolean` | No | True when callers should migrate this exact tool id to its replacement. |
+| `deprecation` | `{ replacementToolId: string; message: string; execution?: 'terminal' \| 'forward'; }` | No | Deprecation reason, replacement, and compatibility execution behavior. |
+| `credentialStatus` | `\| 'managed' \| 'connected' \| 'requires_connection' \| 'deprecated'` | No | Connection status for discovery: `managed` (Deepline-run credentials),<br />`connected` (your own credential is connected), or `requires_connection`<br />(BYO provider not yet connected in this workspace). `deprecated` means<br />connecting credentials will not make the tool callable. |
 | `requiresOwnCredential` | `boolean` | No | True when the tool requires a customer-provided credential to run. |
 | `connectionMessage` | `string` | No | Actionable message shown when a connection is required. |
 
@@ -436,6 +466,7 @@ Either `name` (for live plays) or `artifactStorageKey` (for packaged ad hoc runs
 | `waitForCompletionMs` | `number` | No | Optionally let the start request wait briefly and return a terminal result. |
 | `profile` | `string` | No | Per-run execution profile override. The server defaults to absurd. The<br />Only `absurd` is accepted; most callers should leave this unset. |
 | `integrationMode` | `'live' \| 'eval_stub' \| 'fixture'` | No | Optional per-run provider execution mode for eval/smoke runs. |
+| `fixtureBehavior` | `import('../../shared_libs/play-runtime/fixture-behavior').FixtureBehavior` | No | Fixture-only provider response timing and outcome simulation. |
 | `runtime` | `PlayRuntimeSelection` | No | Internal runtime estate selection. The app host remains unchanged. |
 | `testPolicyOverrides` | `Record<string, unknown>` | No | Internal/dev-only runtime policy overrides for black-box durability tests. |
 
@@ -575,6 +606,8 @@ logs, and exporting durable dataset rows.
 | Name | Type | Required | Description |
 |---|---|---:|---|
 | `get` | `(runId: string, options?: RunsGetOptions) => Promise<PlayStatus>` | Yes | Get current run status by public run id. |
+| `input` | `(runId: string) => Promise<{ runId: string; input: Record<string, unknown> \| unknown[]; bytes: number; sha256: string \| null; replayedFromRunId: string \| null; }>` | Yes | Explicitly read the retained original input (may include customer data). |
+| `rerun` | `(runId: string) => Promise<{ runId: string; replayedFromRunId: string; revisionId: string \| null; status: string; next: { inspect: string; input: string }; }>` | Yes | Start a fresh run from a prior run's retained input and pinned revision. |
 | `list` | `(options: RunsListOptions) => Promise<PlayRunListItem[]>` | Yes | List runs for one play, optionally filtered by status. |
 | `tail` | `(runId: string, options?: RunsTailOptions) => Promise<PlayStatus>` | Yes | Stream run events and return the latest/terminal run status. |
 | `logs` | `(runId: string, options?: RunsLogsOptions) => Promise<RunsLogsResult>` | Yes | Fetch persisted log lines for a run. |

@@ -14,7 +14,7 @@ Write the test first. Before a single waterfall leg exists, make a golden CSV: ~
 
 ## Score properties, not runs
 
-A run succeeding says the pipeline executed; it says nothing about the data. Judge each property on three numbers and let them decide its fate — ship, re-route, or drop: **coverage** (filled ÷ total); **accuracy** (matches ÷ **filled**, never ÷ total — that conflates didn't-find-it with found-it-wrong); **cost** (credits per filled cell). A property at 40% coverage / high accuracy may be worth keeping with an honest `miss_reason`; one at 95% coverage / 70% accuracy is a liability wearing a success costume. Cost turns "add another fallback leg" from a reflex into a decision.
+A run succeeding says the pipeline executed; it says nothing about the data. Judge each property on three numbers and let them decide its fate — ship, re-route, or drop: **coverage** (filled ÷ total, read from `dataset_execution_stats[<column>].non_empty`, the native fill rate on every run package via `deepline runs get <id> --full --json`, with row totals from `rowCounts.{persisted, succeeded, failed}`; don't recompute it); **accuracy** (matches ÷ **filled**, never ÷ total — that conflates didn't-find-it with found-it-wrong; this one you do compute, against golden truth); **cost** (credits per filled cell). A property at 40% coverage / high accuracy may be worth keeping with an honest `miss_reason`; one at 95% coverage / 70% accuracy is a liability wearing a success costume. Cost turns "add another fallback leg" from a reflex into a decision.
 
 **Measure billing honestly.** `deepline runs get <id> --full --json` reports only the parent run; charges from `ctx.runPlay` children and per-row provider calls bill under child runs. For any composed play, take the `deepline billing usage` delta between before and after the run.
 
@@ -29,8 +29,8 @@ Mix on purpose: ~14 clean in-ICP rows, ~4 near-misses (right industry wrong size
 ## The golden loop — red / green / refactor
 
 - **Red** — write `golden.csv` and the bar first: identifier columns, a `truth_<property>` per target, a `truth_source`, an agreed threshold per property. A property with no stated bar can't fail, so it can't teach you.
-- **Green** — build the cheapest candidate route (one provider, one leg), run it over the golden rows, clear the bar.
-- **Refactor** — change exactly one thing per run (a provider, its order, a prompt, a gate) to cut cost or raise accuracy without dropping below the bar. One variable per run or you learn nothing.
+- **Green** — run every viable independent candidate route in one parallel comparison over the same golden rows, then select the route or fused waterfall that clears the bar at the best marginal cost.
+- **Refactor** — after that measured baseline, change exactly one thing per run (a provider, its order, a prompt, a gate) to cut cost or raise accuracy without dropping below the bar. One variable per run or you learn nothing.
 
 Two things about TDD don't transfer: providers are probabilistic, so passing is a threshold on a scored sample, not exact-match; and runs are paid, so the set stays small and durable checkpoints keep reruns cheap. Match rules tolerate probabilistic truth: a band for headcount, exact label for segment, the deliverability contract for emails, the validity gate for phones. At n=20 the scorecard is coarse — one row is five points; trust direction and large gaps, never the third decimal. The harness is one play run over the golden CSV; truth columns ride through as ordinary CSV columns and a pure-TypeScript stage scores the match. The export is the scorecard — no framework.
 
@@ -90,7 +90,10 @@ export default definePlay(
           ? 'hit'
           : 'miss',
       )
-      .run({ key: 'domain', description: 'Score recovered phones against truth.' });
+      .run({
+        key: 'domain',
+        description: 'Score recovered phones against truth.',
+      });
 
     return { rows: scored };
   },
@@ -102,9 +105,33 @@ export default definePlay(
 
 ## Finding the right waterfall
 
-Provider order is a measured, marginal decision, not vendor folklore. Measure all candidates in **one comparison run**: each candidate route its own column, run in parallel (`authoring.md` § Parallelism), and read coverage/accuracy/cost side by side from one golden-set export. Candidates mean the whole category (`deepline tools list <category> --json` — complete recall) swept over a ~10-row batch; keep the top performers as legs and record the also-rans' numbers so the next tuning pass starts from measurements, not memory. On twenty rows, paying every route on every row is cheap and the ranking arrives in minutes. Then assemble the shipped waterfall sequentially — stop-on-first-hit is the *exploit* shape, ordered by marginal reachable-coverage per credit: a leg earns its place only when the correct values it adds, at acceptable accuracy, justify its marginal cost per newly-filled cell. A leg adding 3% coverage at 4× the cost-per-cell gets cut. Dropping legs that weren't paying for themselves — not finding a cheaper provider — is how the same pipeline gets an order of magnitude cheaper without losing coverage.
+Provider order is a measured, marginal decision, not vendor folklore. Measure all candidates in **one comparison run**: each candidate route its own column, run in parallel (`authoring.md` § Parallelism), and read coverage/accuracy/cost side by side from one golden-set export. Candidates mean the whole category (`deepline tools list <category> --json` — complete recall) swept over a ~10-row batch; keep the top performers as legs and record the also-rans' numbers so the next tuning pass starts from measurements, not memory. On twenty rows, paying every route on every row is cheap and the ranking arrives in minutes. Then assemble the shipped waterfall sequentially — stop-on-first-hit is the _exploit_ shape, ordered by marginal reachable-coverage per credit: a leg earns its place only when the correct values it adds, at acceptable accuracy, justify its marginal cost per newly-filled cell. A leg adding 3% coverage at 4× the cost-per-cell gets cut. Dropping legs that weren't paying for themselves — not finding a cheaper provider — is how the same pipeline gets an order of magnitude cheaper without losing coverage.
 
 For phones, validity is read off the golden set, never asserted: mobile/direct coverage on a cold B2B list commonly measures 40-60%, and a route claiming 90% is usually counting switchboard numbers a dialer can't use. Gate with two thresholds — a soft coverage floor and a hard near-zero wrong-number rate, because a wrong number burns a rep's call and the account, so it is worse than a miss. Truth includes line-type and activity, so a returned-but-dead number is a miss: run the validity gate as a third dataset stage with its own key, flipping a digit-match hit to a miss on a bad verdict, before trusting any dialing list.
+
+### Use the two research kernels
+
+For any task where evidence, provider choice, cost, or the next action depends
+on prior results, the task-authored Play uses both portable kernels:
+`research-experiment.ts` owns claim contracts, source binding, completeness,
+and promotion; `research-portfolio.ts` owns the contextual budgeted action
+selection. The agent authors literal providers, queries, adapters, mapping,
+and acceptance gates. The kernel never chooses a provider or turns a ranking
+into a customer fact.
+
+Compare routes with the same golden rows and the same claim contract. Record
+verified coverage, incomplete rows, evidence-policy failures, current-row
+Deepline credits, and duration. Replan one action at a time in the live pilot;
+the result of an action changes the remaining claims, admissible artifacts, and
+the expected value of every next action. A successful empty response is a
+`no_result`; an adapter or policy failure is not zero coverage and must stop or
+restart the current row attempt without changing the source-yield posterior.
+
+`plays/shared/route-experiment.ts` remains a compatibility helper for a narrow,
+fixed retrieval-ranking problem. It is not the default research controller, and
+its RRF or optional AI judge may prioritize a bounded lead shortlist only. It
+cannot verify a claim, select a customer row, or replace the two-kernel
+evidence and promotion contract.
 
 ## Where checks live, and when to stop
 
@@ -112,4 +139,15 @@ Cheapest first, each layer earning the next: (1) **pure columns in the play** �
 
 Applying it: **work emails** — validate after recovery and coalescing, once per final value; `valid` ships, `catch_all` → `verify_next` (needs a second independent finder/validator; keep the address, name the risk), `invalid` drops, `unknown` unresolved; email domain must match the company domain or you've likely found a previous employer. **Person identity** — the returned name must match and the target company must appear in the person's work history, or it's a same-name stranger; current role is the latest active work entry, not the profile's top-level title. **Phones** — verify line type and activity before any dialing list; a wrong-person number costs more than a missing one.
 
-Stop when the bar is met and the last change moved the numbers by less than a row (inside sampling noise = converged). Golden proves the route (unit tier), a fresh-row pilot catches overfit (integration tier), approval and scale follow. Keep the golden set as a standing regression suite: re-run before every `set-live` and whenever a provider or threshold changes — providers degrade silently, and a dropped bar on twenty known rows is the cheapest detector you'll ever have. Good enough is a number the customer signed off on, not a feeling. The job docs name today's validators and plays; discover current names with `deepline tools search` / `deepline plays search`.
+Stop when the delivery bar is met and the last change moved the numbers by less
+than a row (inside sampling noise = converged). For a fixed named-entity list,
+convergence does not erase missing entities: retain each as unresolved with its
+independent-route ledger, or cross an explicitly approved semantic relaxation
+boundary and keep searching. Golden proves the route (unit tier), a fresh-row
+pilot catches overfit (integration tier), approval and scale follow. Keep the
+golden set as a standing regression suite: re-run before every `set-live` and
+whenever a provider or threshold changes — providers degrade silently, and a
+dropped bar on twenty known rows is the cheapest detector you'll ever have.
+Good enough is a number the customer signed off on, not a feeling. The job docs
+name today's validators and plays; discover current names with
+`deepline tools search` / `deepline plays search`.

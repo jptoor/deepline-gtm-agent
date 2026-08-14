@@ -1,6 +1,6 @@
 ---
 name: deepline-gtm
-description: "Use for GTM prospecting, enrichment, research, outreach, scoring, campaigns, CSVs, and Deepline plays/scripts. Discovery: deepline-pre-research. Providers: adyntel, ai_ark, allegrow, apify, attio, aviato, bettercontact, bloomberry, bluesky, browserbase, builtwith, cloudflare, contactout, crustdata, crustdata-v2, crustdata-v3, customer_db, dataforseo, datagma, deepline_native, deeplineagent, discolike, dropleads, emailbison, emailguard, enformion, exa, findymail, firecrawl, firmable, forager, fullenrich, generic_http, gong, google_ads_audiences, hackernews, heyreach, hubspot, hunter, icypeas, instantly, intercom, ipqs, leadmagic, lemlist, limadata, linkedin_ads_audiences, linkedin_scraper, lusha, meta_audiences, openmart, opensosdata, openwebninja, parallel, peopledatalabs, podscan, predictleads, prospeo, rocketreach, salesforce, salesforge, scrapecreators, sentrion, serper, slack, smartlead, snowflake, sumble, theirstack, trestle, twitterapi, upcell, wiza, wizleads, zerobounce."
+description: "GTM prospecting, enrichment, outreach, scoring, CSVs, and plays. Discovery: deepline-pre-research. Providers: adyntel,ai_ark,allegrow,amplemarket,apify,attention,attio,aviato,bettercontact,bloomberry,bluesky,bounceban,browserbase,builtwith,clickhouse,cloudflare,contactout,crustdata,crustdata-v2,crustdata-v3,customer_db,dataforseo,datagma,deepline_ip_to_company,deepline_native,deeplineagent,discolike,dropleads,emailbison,emailguard,enformion,enigma,exa,findymail,firecrawl,fireflies,firmable,forager,fullenrich,generic_http,gong,google_ads_audiences,google_workspace,hackernews,heyreach,hubspot,hunter,icypeas,instantly,intercom,ipqs,kernel,leadmagic,lemlist,limadata,linkedin_ads_audiences,linkedin_scraper,lusha,meta_audiences,nooks,openmart,opensosdata,openwebninja,outreach,parallel,peopledatalabs,podscan,predictleads,prospeo,quickenrich,rocketreach,salesforce,salesforge,scrapecreators,sentrion,serper,slack,smartlead,snowflake,sumble,theirstack,trestle,twitterapi,upcell,wiza,wizleads,zerobounce."
 ---
 
 # GTM Meta Skill
@@ -26,7 +26,7 @@ Use this skill for prospecting, account research, contact enrichment, verificati
 
 - Route GTM decisions, safety gates, and provider/quality defaults before execution.
 - Keep long command chains and tooling nuance in sub-docs; provider-specific implementation detail in `provider-playbooks/*.md`.
-- Provide clear entry points for both paid and non-paid workflows, including `--rows 0:1` one-row pilots.
+- Provide clear entry points for both paid and non-paid workflows, including `--rows 0` one-row pilots.
 
 ## Process/goal
 
@@ -103,7 +103,7 @@ If none match, grep for more specific keywords: `Grep pattern="<keyword>" path="
 - **NEVER read a large CSV into context with the Read tool.** Reading CSV rows into the conversation window exhausts context and produces zero output. This is the single most common failure mode.
 - Use `deepline enrich` for any row-by-row processing (enrichment, rewriting, research, scoring).
 - To explore or understand CSV content without loading it, use `deepline csv show --csv <path> --rows 0:2` for a two-row sample, or spawn an Explore subagent to answer questions about the data.
-- For CSV enrichment, use `deepline enrich --input <csv> --output <csv> --name task-slug --rows 0:1 ...` for a one-row pilot, then rerun against the full file after inspecting output. If the installed surface is unclear, check `deepline --help` and `deepline enrich --help` before the first run rather than discovering the shape through a failed enrichment.
+- For CSV enrichment, use `deepline enrich --input <csv> --output <csv> --name task-slug --rows 0 ...` for a one-row pilot, then rerun against the full file after inspecting output. Row ranges are inclusive, so `--rows 0:1` selects two rows. If the installed surface is unclear, check `deepline --help` and `deepline enrich --help` before the first run rather than discovering the shape through a failed enrichment.
 
 ### Tools
 
@@ -207,7 +207,7 @@ GTM time windows, thresholds, and interpretation rules are defined in the Defini
 
 Provider-specific playbooks are bundled as separate reference files. Open the relevant playbook when provider-specific behavior, pricing, caveats, or payload conventions matter.
 
-[adyntel](provider-playbooks/adyntel.md), [ai_ark](provider-playbooks/ai_ark.md), [allegrow](provider-playbooks/allegrow.md), [apify](provider-playbooks/apify.md), [attio](provider-playbooks/attio.md), [aviato](provider-playbooks/aviato.md), [bettercontact](provider-playbooks/bettercontact.md), [bloomberry](provider-playbooks/bloomberry.md), [bluesky](provider-playbooks/bluesky.md), [browserbase](provider-playbooks/browserbase.md), [builtwith](provider-playbooks/builtwith.md), [cloudflare](provider-playbooks/cloudflare.md), [contactout](provider-playbooks/contactout.md), [crustdata](provider-playbooks/crustdata.md), [crustdata-v2](provider-playbooks/crustdata-v2.md), [crustdata-v3](provider-playbooks/crustdata-v3.md), [dataforseo](provider-playbooks/dataforseo.md), [datagma](provider-playbooks/datagma.md), [deepline_native](provider-playbooks/deepline_native.md), [deeplineagent](provider-playbooks/deeplineagent.md), [discolike](provider-playbooks/discolike.md), [dropleads](provider-playbooks/dropleads.md), [emailbison](provider-playbooks/emailbison.md), [emailguard](provider-playbooks/emailguard.md), [enformion](provider-playbooks/enformion.md), [exa](provider-playbooks/exa.md), [findymail](provider-playbooks/findymail.md), [firecrawl](provider-playbooks/firecrawl.md), [forager](provider-playbooks/forager.md), [fullenrich](provider-playbooks/fullenrich.md), [generic_http](provider-playbooks/generic_http.md), [gong](provider-playbooks/gong.md), [google_ads_audiences](provider-playbooks/google_ads_audiences.md), [hackernews](provider-playbooks/hackernews.md), [heyreach](provider-playbooks/heyreach.md), [hubspot](provider-playbooks/hubspot.md), [hunter](provider-playbooks/hunter.md), [icypeas](provider-playbooks/icypeas.md), [instantly](provider-playbooks/instantly.md), [intercom](provider-playbooks/intercom.md), [ipqs](provider-playbooks/ipqs.md), [leadmagic](provider-playbooks/leadmagic.md), [lemlist](provider-playbooks/lemlist.md), [limadata](provider-playbooks/limadata.md), [linkedin_ads_audiences](provider-playbooks/linkedin_ads_audiences.md), [lusha](provider-playbooks/lusha.md), [meta_audiences](provider-playbooks/meta_audiences.md), [openmart](provider-playbooks/openmart.md), [opensosdata](provider-playbooks/opensosdata.md), [openwebninja](provider-playbooks/openwebninja.md), [parallel](provider-playbooks/parallel.md), [peopledatalabs](provider-playbooks/peopledatalabs.md), [podscan](provider-playbooks/podscan.md), [predictleads](provider-playbooks/predictleads.md), [prospeo](provider-playbooks/prospeo.md), [salesforce](provider-playbooks/salesforce.md), [salesforge](provider-playbooks/salesforge.md), [scrapecreators](provider-playbooks/scrapecreators.md), [sentrion](provider-playbooks/sentrion.md), [serper](provider-playbooks/serper.md), [smartlead](provider-playbooks/smartlead.md), [snowflake](provider-playbooks/snowflake.md), [sumble](provider-playbooks/sumble.md), [theirstack](provider-playbooks/theirstack.md), [trestle](provider-playbooks/trestle.md), [twitterapi](provider-playbooks/twitterapi.md), [upcell](provider-playbooks/upcell.md), [wiza](provider-playbooks/wiza.md), [wizleads](provider-playbooks/wizleads.md), [zerobounce](provider-playbooks/zerobounce.md)
+[adyntel](provider-playbooks/adyntel.md), [ai_ark](provider-playbooks/ai_ark.md), [allegrow](provider-playbooks/allegrow.md), [amplemarket](provider-playbooks/amplemarket.md), [apify](provider-playbooks/apify.md), [attention](provider-playbooks/attention.md), [attio](provider-playbooks/attio.md), [aviato](provider-playbooks/aviato.md), [bettercontact](provider-playbooks/bettercontact.md), [bloomberry](provider-playbooks/bloomberry.md), [bluesky](provider-playbooks/bluesky.md), [bounceban](provider-playbooks/bounceban.md), [browserbase](provider-playbooks/browserbase.md), [builtwith](provider-playbooks/builtwith.md), [clickhouse](provider-playbooks/clickhouse.md), [cloudflare](provider-playbooks/cloudflare.md), [contactout](provider-playbooks/contactout.md), [crustdata](provider-playbooks/crustdata.md), [crustdata-v2](provider-playbooks/crustdata-v2.md), [crustdata-v3](provider-playbooks/crustdata-v3.md), [dataforseo](provider-playbooks/dataforseo.md), [datagma](provider-playbooks/datagma.md), [deepline_ip_to_company](provider-playbooks/deepline_ip_to_company.md), [deepline_native](provider-playbooks/deepline_native.md), [deeplineagent](provider-playbooks/deeplineagent.md), [discolike](provider-playbooks/discolike.md), [dropleads](provider-playbooks/dropleads.md), [emailbison](provider-playbooks/emailbison.md), [emailguard](provider-playbooks/emailguard.md), [enformion](provider-playbooks/enformion.md), [enigma](provider-playbooks/enigma.md), [exa](provider-playbooks/exa.md), [findymail](provider-playbooks/findymail.md), [firecrawl](provider-playbooks/firecrawl.md), [fireflies](provider-playbooks/fireflies.md), [forager](provider-playbooks/forager.md), [fullenrich](provider-playbooks/fullenrich.md), [generic_http](provider-playbooks/generic_http.md), [gong](provider-playbooks/gong.md), [google_ads_audiences](provider-playbooks/google_ads_audiences.md), [hackernews](provider-playbooks/hackernews.md), [heyreach](provider-playbooks/heyreach.md), [hubspot](provider-playbooks/hubspot.md), [hunter](provider-playbooks/hunter.md), [icypeas](provider-playbooks/icypeas.md), [instantly](provider-playbooks/instantly.md), [intercom](provider-playbooks/intercom.md), [ipqs](provider-playbooks/ipqs.md), [kernel](provider-playbooks/kernel.md), [leadmagic](provider-playbooks/leadmagic.md), [lemlist](provider-playbooks/lemlist.md), [limadata](provider-playbooks/limadata.md), [linkedin_ads_audiences](provider-playbooks/linkedin_ads_audiences.md), [lusha](provider-playbooks/lusha.md), [meta_audiences](provider-playbooks/meta_audiences.md), [nooks](provider-playbooks/nooks.md), [openmart](provider-playbooks/openmart.md), [opensosdata](provider-playbooks/opensosdata.md), [openwebninja](provider-playbooks/openwebninja.md), [outreach](provider-playbooks/outreach.md), [parallel](provider-playbooks/parallel.md), [peopledatalabs](provider-playbooks/peopledatalabs.md), [podscan](provider-playbooks/podscan.md), [predictleads](provider-playbooks/predictleads.md), [prospeo](provider-playbooks/prospeo.md), [quickenrich](provider-playbooks/quickenrich.md), [salesforce](provider-playbooks/salesforce.md), [salesforge](provider-playbooks/salesforge.md), [scrapecreators](provider-playbooks/scrapecreators.md), [sentrion](provider-playbooks/sentrion.md), [serper](provider-playbooks/serper.md), [smartlead](provider-playbooks/smartlead.md), [snowflake](provider-playbooks/snowflake.md), [sumble](provider-playbooks/sumble.md), [theirstack](provider-playbooks/theirstack.md), [trestle](provider-playbooks/trestle.md), [twitterapi](provider-playbooks/twitterapi.md), [upcell](provider-playbooks/upcell.md), [wiza](provider-playbooks/wiza.md), [wizleads](provider-playbooks/wizleads.md), [zerobounce](provider-playbooks/zerobounce.md)
 
 - Apply defaults when user input is absent.
 - User-specified values always override defaults.
@@ -257,7 +257,7 @@ the built-in dry-run when that command supports one. Then get explicit approval.
 
 ### 4.1 Required run order
 
-1. Pilot on a narrow scope (example `--rows 0:1` for one row).
+1. Pilot on a narrow scope (example `--rows 0` for one row).
 2. Request explicit approval.
 3. Run full scope only after approval.
 
@@ -269,6 +269,7 @@ the built-in dry-run when that command supports one. Then get explicit approval.
 - Prefer providers and plays that charge on returned results or successful hits when coverage is uncertain. If a provider bills per attempt/request/page, prove quality on a tiny pilot before letting it fan out.
 - Stop after the pilot when the first rows show low usable coverage, wrong-person/company matches, missing getters, or high cost per usable row. Change route/provider order before buying the same failure at full scale.
 - Do not depend on monthly caps as a hard risk control.
+- For every approved paid `deepline enrich` full run, pass the approved cap as `--max-credits-per-run <credits>`. This is the runtime-enforced hard Deepline-credit ceiling. Do not describe a cap as enforced unless the flag is present on the full-run command.
 
 ### 4.2.1 Over-provision, then filter — never chase missing rows
 
@@ -296,7 +297,7 @@ Include all of:
 1. Provider(s)
 2. Pilot summary and observed behavior
 3. Intent-level assumptions (3–5 one-line bullets)
-4. CSV preview from a real `deepline enrich --rows 0:1` one-row pilot
+4. CSV preview from a real `deepline enrich --rows 0` one-row pilot
 5. Credits estimate / range
 6. Full-run scope size
 7. Max spend cap
@@ -320,7 +321,7 @@ Assumptions
 - <intent assumption 2>
 
 CSV Preview (ASCII)
-<paste verbatim output from deepline enrich --rows 0:1>
+<paste verbatim output from deepline enrich --rows 0>
 Credits + Scope + Cap
 
 - Provider: <name>
@@ -335,7 +336,7 @@ Approve full run?
 
 ### 4.4 Mandatory checkpoint
 
-- Must run a real pilot on the exact CSV for full run (`--rows 0:1`, end exclusive).
+- Must run a real one-row pilot on the exact CSV for the full run (`--rows 0`). Row ranges are inclusive.
 - Must include ASCII preview verbatim in approval.
 - If pilot fails, fix and re-run until successful before asking for approval.
 - Ask for approval in chat after the pilot. Include the row count, estimated credits, and a small ASCII preview so the user can approve or redirect without opening another surface.
