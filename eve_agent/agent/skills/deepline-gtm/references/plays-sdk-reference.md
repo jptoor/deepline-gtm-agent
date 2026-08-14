@@ -86,6 +86,60 @@ export default definePlay(
 );
 ```
 
+### Fall Through A Transient Provider Failure
+
+Catch only `ProviderTransientError` when another read provider can answer the same question. Validation, authentication, billing, Deepline, unknown, and final-provider failures stay loud.
+
+Source: `docs-examples/sdk-v2/provider-fallback.play.ts`
+
+```ts
+import { definePlay, ProviderTransientError } from 'deepline';
+
+type Input = {
+  firstName: string;
+  lastName: string;
+  domain: string;
+};
+
+export default definePlay(
+  'docs-provider-fallback',
+  async (ctx, input: Input) => {
+    try {
+      const primary = await ctx.tools.execute({
+        id: 'primary_email',
+        tool: 'hunter_email_finder',
+        input: {
+          first_name: input.firstName,
+          last_name: input.lastName,
+          domain: input.domain,
+        },
+        description: 'Try the primary email provider.',
+      });
+      return { email: primary.extractedValues.email?.get() ?? null };
+    } catch (error) {
+      if (!(error instanceof ProviderTransientError)) throw error;
+    }
+
+    const fallback = await ctx.tools.execute({
+      id: 'fallback_email',
+      tool: 'leadmagic_email_finder',
+      input: {
+        first_name: input.firstName,
+        last_name: input.lastName,
+        domain: input.domain,
+        company_domain: input.domain,
+      },
+      description: 'Try the fallback email provider.',
+    });
+    return { email: fallback.extractedValues.email?.get() ?? null };
+  },
+  {
+    description:
+      'Find an email with one safe provider-failure fallback and loud terminal errors.',
+  },
+);
+```
+
 ### Schedule A Dataset Refresh
 
 Source: `docs-examples/sdk-v2/nightly-account-refresh.play.ts`
@@ -180,18 +234,95 @@ export default definePlay(
 );
 ```
 
+## Play Authoring Contract
+
+New artifacts pin authoring contract edition 3. Check, publish, and run use the same admitted snapshot.
+
+| Field | Type | Required | Contract |
+|---|---|---:|---|
+| `description` | `string` | No | Optional non-empty human-readable summary of the Play. |
+| `compatibility.toolErrorSchemaVersion` | `0 \| 1` | No | Artifact-pinned tool error behavior, either 0 or 1. |
+| `inline` | `boolean` | No | Compiler hint for an inline named Play handler. |
+| `billing.maxCreditsPerRun` | `number` | No | Maximum Deepline credits permitted for one Play Run. |
+| `bindings.webhook.hmac.secretEnv` | `string` | Yes | Environment variable containing the webhook HMAC secret. |
+| `bindings.webhook.hmac.algorithm` | `'sha256'` | No | Webhook signature hash algorithm. Only sha256 is supported. |
+| `bindings.webhook.hmac.header` | `string` | No | HTTP header containing the webhook signature. |
+| `bindings.webhook.auth.type` | `'standard-webhooks'` | No | Uses the Standard Webhooks v1 symmetric signing scheme. |
+| `bindings.webhook.auth.headerFamily` | `'standard' \| 'svix'` | No | Header namespace expected from the webhook provider. |
+| `bindings.webhook.auth.signingSecrets[]` | `string` | No | Deepline Secret name used to verify Standard Webhooks. |
+| `bindings.webhook.auth.toleranceSeconds` | `number` | No | Accepted delivery timestamp skew in seconds, from 1 through 3600. |
+| `bindings.cron.schedule` | `string` | Yes | Five-field cron expression. |
+| `bindings.cron.timezone` | `string` | No | IANA timezone. Omitted means UTC. |
+| `bindings.sqlListeners` | `SqlListener[]` | No | Static provider-monitor listener declarations. |
+| `bindings.sqlListeners[].id` | `string` | Yes | Unique static listener identifier within one Play. |
+| `bindings.sqlListeners[].tool` | `string` | Yes | Modeled provider monitor tool id in provider.tool form. |
+| `bindings.sqlListeners[].stream` | `string` | Yes | Static output stream key exposed by the monitor tool. |
+| `bindings.sqlListeners[].operations[]` | `'INSERT' \| 'UPDATE' \| 'DELETE'` | No | Database operation that wakes the listener. |
+| `bindings.sqlListeners[].where.before` | `Record<string, SqlListenerFilterOperator>` | No | Column filters evaluated against the row before mutation. |
+| `bindings.sqlListeners[].where.after` | `Record<string, SqlListenerFilterOperator>` | No | Column filters evaluated against the row after mutation. |
+| `bindings.sqlListeners[].where.*.*.eq` | `SqlListenerFilterScalar` | No | Scalar equality condition. |
+| `bindings.sqlListeners[].where.*.*.neq` | `SqlListenerFilterScalar` | No | Scalar inequality condition. |
+| `bindings.sqlListeners[].where.*.*.in` | `readonly SqlListenerFilterScalar[]` | No | Non-empty scalar membership condition. |
+| `bindings.sqlListeners[].where.*.*.notIn` | `readonly SqlListenerFilterScalar[]` | No | Non-empty scalar exclusion condition. |
+| `bindings.sqlListeners[].where.*.*.isNull` | `true` | No | Matches null values when set to true. |
+| `bindings.sqlListeners[].where.*.*.isNotNull` | `true` | No | Matches non-null values when set to true. |
+| `bindings.sqlListeners[].where.*.*.ilike` | `string` | No | Case-insensitive SQL pattern condition. |
+| `bindings.secrets[]` | `string` | No | Environment variable made available to the Play. |
+| `staleAfterSeconds` | `number \| null` | No | `0` always executes; `null`/omitted never expires; a positive integer is a TTL in seconds. |
+| `ctx.tools.execute.id` | `string` | Yes | Stable durable receipt identity within one execution scope. |
+| `ctx.tools.execute.tool` | `K` | Yes | Integration tool id resolved against the generated ToolMap. |
+| `ctx.tools.execute.input` | `K extends keyof ToolMap ? ToolMap[K]['input'] : Record<string, unknown>` | Yes | Tool-specific input object. |
+| `ctx.tools.execute.description` | `string` | No | Human-readable purpose of the durable tool call. |
+| `ctx.tools.execute.force` | `boolean` | No | Explicitly bypasses a completed durable tool receipt. |
+| `ctx.tools.execute.timeoutMs` | `number` | No | Positive whole-number runtime transport timeout in milliseconds. |
+| `ctx.tools.execute.receiptWaitMs` | `number` | No | Positive whole-number durable receipt wait budget in milliseconds. |
+| `ctx.csv.options.description` | `string` | No | Non-empty description for a staged CSV load. |
+| `ctx.csv.options.columns` | `CsvRenameMap` | No | Canonical field-to-header aliases for a staged CSV. |
+| `ctx.csv.options.rename` | `CsvRenameMap` | No | Legacy header rename aliases for a staged CSV. |
+| `ctx.csv.options.required` | `readonly string[]` | No | Canonical columns required after CSV normalization. |
+| `ctx.dataset.key` | `string` | Yes | Stable durable identity for one dataset. |
+| `ctx.dataset.run.description` | `string` | No | Non-empty description for one dataset execution. |
+| `ctx.dataset.run.key` | `DatasetRowKey<InputRow>` | No | Stable field or fields used for durable row identity. |
+| `ctx.dataset.run.onRowError` | `'isolate' \| 'fail'` | No | Whether row failures isolate or fail the whole dataset. |
+| `ctx.dataset.run.mode` | `'upsert' \| 'net_new'` | No | Whether the dataset returns all rows or only newly admitted rows. |
+| `ctx.step.id` | `string` | Yes | Stable durable identity for one scalar checkpoint. |
+| `ctx.step.semanticKey` | `string` | No | Optional semantic receipt identity for a scalar checkpoint. |
+| `ctx.step.staleAfterSeconds` | `number \| null` | No | Checkpoint freshness: null/omitted never expires, 0 always executes. |
+| `ctx.fetch.key` | `string` | Yes | Stable durable identity for one external HTTP request. |
+| `ctx.fetch.staleAfterSeconds` | `number \| null` | No | Fetch freshness: null/omitted never expires, 0 always executes. |
+| `ctx.runPlay.key` | `string` | Yes | Stable identity for one inline child Play call. |
+| `ctx.runPlay.playRef` | `string \| PlayReferenceLike` | Yes | Child Play name or typed Play definition handle. |
+| `ctx.runPlay.input` | `Record<string, unknown>` | Yes | Scalar input object submitted to the child Play. |
+| `ctx.runPlay.options.description` | `string` | Yes | Non-empty purpose for one inline child Play call. |
+| `ctx.runPlay.options.execution` | `'inline'` | No | Child composition strategy. Only inline is supported. |
+| `ctx.runPlay.options.timeoutMs` | `never` | No | Unsupported legacy child-workflow timeout. |
+| `runtime.timeout` | `string` | No | Sandbox deadline such as 90m or 2h. |
+| `runtime.size` | `'standard'` | No | Deepline-managed sandbox size. Only standard is supported. |
+| `ctx.customerDb.query.statement` | `SqlQuery` | Yes | One non-empty Customer DB SQL string; the deprecated SqlQuery object is accepted only without parameter values. |
+| `ctx.customerDb.query.options.maxRows` | `number` | No | Positive whole-number Customer DB response row limit. |
+| `ctx.customerDb.query.options.timeoutMs` | `number` | No | Positive whole-number Customer DB timeout in milliseconds. |
+| `ctx.tool.key` | `string` | Yes | Stable receipt identity for the tool shorthand. |
+| `ctx.tool.tool` | `string` | Yes | Integration tool id for the tool shorthand. |
+| `ctx.tool.input` | `Record<string, unknown>` | Yes | Tool-specific input object for the shorthand. |
+| `ctx.tool.options.description` | `string` | No | Non-empty purpose for the tool shorthand. |
+| `ctx.runSteps.options.description` | `string` | No | Non-empty purpose for a reusable step program. |
+| `ctx.sleep.ms` | `number` | Yes | Non-negative whole-number sleep duration in milliseconds. |
+| `ctx.fetch.url` | `string` | Yes | HTTP request URL. Secret authentication requires HTTPS. |
+| `ctx.fetch.init.method` | `string` | No | HTTP method. Mutating methods require an Idempotency-Key. |
+| `ctx.fetch.init.headers.Idempotency-Key` | `string` | No | Required for mutating HTTP methods to make replay safe. |
+
 Generated from source comments and type declarations by `scripts/generate-play-sdk-reference.ts`. Do not edit this file manually.
 
 ## Version And Coverage
 
 | Field | Value |
 |---|---|
-| SDK version | `0.1.254` |
+| SDK version | `0.2.0` |
 | SDK HTTP API | `v2` |
-| Checked-in SDK fallback | `0.1.254` |
+| Checked-in SDK fallback | `0.2.0` |
 | Minimum supported SDK | `0.1.53` |
 | Deprecated below | `0.1.219` |
-| Generated sources | `sdk/src/client.ts`<br />`sdk/src/play.ts`<br />`shared_libs/play-runtime/cell-staleness.ts`<br />`shared_libs/play-runtime/tool-result-types.ts`<br />`shared_libs/plays/dataset.ts` |
+| Generated sources | `sdk/src/client.ts`<br />`sdk/src/errors.ts`<br />`sdk/src/play.ts`<br />`shared_libs/play-runtime/cell-staleness.ts`<br />`shared_libs/play-runtime/tool-result-types.ts`<br />`shared_libs/plays/authoring-contract.ts`<br />`shared_libs/plays/dataset.ts`<br />`shared_libs/tool-execution-error.ts` |
 | Coverage | Runtime SDK surface: `Deepline.connect`, `DeeplineContext`, `DeeplineClient`, play authoring, in-play `ctx.*` primitives, provider/tool calls, named play handles, run handles, datasets, and tool result accessors. |
 | Not covered | Full CLI command help, provider-specific input/output schemas, dashboard-only routes, and marketing/tutorial guides. Use `references/plays-api-reference.md` for generated HTTP route contracts. |
 
@@ -202,7 +333,6 @@ Generated from source comments and type declarations by `scripts/generate-play-s
 Static entry point for the Deepline SDK.
 
 Signature: `class Deepline`
-
 #### Members
 
 | Member | Kind | Purpose | Parameters | Returns / type |
@@ -217,7 +347,6 @@ Created by `Deepline.connect`. Wraps a `DeeplineClient` with
 a friendlier API for common operations.
 
 Signature: `class DeeplineContext`
-
 #### Members
 
 | Member | Kind | Purpose | Parameters | Returns / type |
@@ -243,7 +372,6 @@ Plays are the primary abstraction for building repeatable data pipelines.
 They run on Temporal for durable execution with automatic retries and timeouts.
 
 Signature: `export function definePlay<TInput, TOutput extends PlayReturnObject>( config: DefinePlayConfig<TInput, TOutput>, ): DefinedPlay<TInput, TOutput>; export function definePlay<TInput, TOutput extends PlayReturnObject>( name: string, fn: (ctx: DeeplinePlayRuntimeContext, input: TInput) => Promise<TOutput>, bindings?: PlayBindings, ): DefinedPlay<TInput, TOutput>;`
-
 #### Overload 1
 
 #### Parameters
@@ -281,16 +409,7 @@ through `defineInput<T>(schema)`, or when configuration reads clearer as one
 object. The shorthand `definePlay(name, fn, bindings?)` is equivalent for
 simple file-backed plays.
 
-#### Fields
-
-| Name | Type | Required | Description |
-|---|---|---:|---|
-| `id` | `string` | Yes | Play id/name. |
-| `description` | `string` | No | Human-readable one-line description of what this play does. |
-| `input` | `PlayInputContract<TInput>` | Yes | Input schema. |
-| `run` | `(ctx: DeeplinePlayRuntimeContext, input: TInput) => Promise<TOutput>` | Yes | Play function. |
-| `bindings` | `PlayBindings` | No | Trigger bindings. |
-| `billing` | `PlayBindings['billing']` | No | Billing options. |
+Signature: `export type DefinePlayConfig< TInput, TOutput extends PlayReturnObject, > = PlayAuthoringDefineConfig<TInput, TOutput, DeeplinePlayRuntimeContext>;`
 
 
 ### `PlayBindings`
@@ -299,7 +418,8 @@ Optional trigger bindings for a play.
 
 A play can be triggered three ways, declared as the third argument to
 [definePlay](/sdk-v2/sdk-reference#defineplay):
-- `webhook` — an inbound HTTP call (with optional HMAC signature verification);
+- `webhook` — an inbound HTTP call (with optional legacy HMAC or Standard
+  Webhooks signature verification);
 - `cron` — a schedule; or
 - `sqlListeners` — a **monitor**: the play runs whenever a monitor writes a new
   row to its output stream. This is how you build a play "on top of" a monitor
@@ -308,45 +428,20 @@ A play can be triggered three ways, declared as the third argument to
   `deepline monitors available <id>` for a tool's streams and row columns).
   The changed row is delivered to the handler as the listener event's `after`.
 
-#### Fields
-
-| Name | Type | Required | Description |
-|---|---|---:|---|
-| `description` | `string` | No | Human-readable one-line description of what this play does.<br /><br />New SDK-authored file workflows require this in `plays check`, `plays run<br />--file`, and `plays publish <file>`. The server API keeps it optional so<br />older clients can continue to register revisions during the migration. |
-| `inline` | `boolean` | No | Allow compilers to bundle this named handler directly without a child run. |
-| `billing` | `{ maxCreditsPerRun?: number; }` | No | Optional per-run billing controls enforced by the runtime. |
-| `webhook` | `{ hmac?: { algorithm?: 'sha256'; header?: string; secretEnv: string; }; }` | No | Webhook trigger with optional HMAC signature verification. |
-| `cron` | `{ schedule: string; timezone?: string; }` | No | Cron schedule trigger. |
-| `sqlListeners` | `SqlListenerDeclaration[]` | No | Customer DB row-change listeners that wake this play when published. |
-| `secrets` | `readonly string[]` | No | Customer-authored play secrets this play is allowed to use at runtime.<br />Values are never bundled or exposed by the SDK; access them with<br />`ctx.secrets.get("NAME")` and approved helpers such as<br />`ctx.secrets.bearer(handle)`. Secret-authenticated `ctx.fetch` calls<br />require an https:// URL so customer secrets never leave Deepline over<br />plaintext HTTP. |
+Signature: `export type PlayBindings = PlayAuthoringBindings;`
 
 
 ### `ctx.csv(path, options)`
 
 Load a staged CSV file as a durable dataset handle.
 
-Use this when a play receives a CSV path from the CLI or API and row work
-should continue through [DeeplinePlayRuntimeContext.dataset](/sdk-v2/sdk-reference#runtime-primitives). The path is
-normally an input field such as `input.csv`, populated by
-`deepline plays run my.play.ts --csv rows.csv`. Prefer `input.csv` for row
-data so the CLI can run strict CSV preflight before starting a run.
-Pass-through flags can also target non-reserved field names. If a play
-intentionally calls `ctx.csv(input.file)`, use `--input
-'{"file":"rows.csv"}'` because `--file` is reserved for the play source
-path.
-
-Each CSV row becomes an object keyed by canonical column names. Use
-`options.columns` / `options.rename` to map user headers such as
-`"Company Domain"` to stable code fields such as `domain`.
-
-Signature: `csv<T = Record<string, unknown>>( path: string, options?: CsvOptions, ): Promise<PlayDataset<T>>;`
-
+Signature: `csv<T = Record<string, unknown>>( path: string | CsvInput<T & object>, options?: CsvOptions, ): Promise<PlayDataset<T>>;`
 #### Parameters
 
 | Name | Type | Required | Description |
 |---|---|---:|---|
-| `path` | `string` | Yes | Staged CSV path. |
-| `options` | `CsvOptions` | No | CSV load options. |
+| `path` | `string \| CsvInput<T & object>` | Yes |  |
+| `options` | `CsvOptions` | No |  |
 
 #### Returns
 
@@ -357,161 +452,101 @@ Signature: `csv<T = Record<string, unknown>>( path: string, options?: CsvOptions
 
 Options for loading a staged CSV with `ctx.csv(...)`.
 
-#### Fields
-
-| Name | Type | Required | Description |
-|---|---|---:|---|
-| `description` | `string` | No | Human-readable description for runtime logs and inspection. |
-| `columns` | `CsvRenameMap` | No | Canonical field-to-header aliases, e.g. `{ domain: ['domain', 'Company Domain'] }`. |
-| `rename` | `CsvRenameMap` | No | Header rename map; use `columns` for new code. |
-| `required` | `readonly string[]` | No | Canonical fields that must be present after header normalization. |
+Signature: `export type CsvOptions = CsvOptions;`
 
 
 ### `ctx.dataset(key, items)`
 
-Create a persisted row dataset/table from input rows.
+Create a persisted row dataset and define durable output columns.
 
-`ctx.dataset` is Deepline's row-work primitive. It records row identity,
-progress, retries, table output, and idempotency for a collection of rows.
-Use `.withColumn(name, resolver)` on the returned builder to define output
-columns, then `.run(...)` to execute the row program.
-
-The `key` identifies the logical dataset/table. Renaming it is a persistence
-migration: existing rows may no longer be reused. Row identity is derived
-automatically from input row content unless `.run({ key: ... })` overrides
-it with stable business fields such as `domain`, `email`, or `linkedin_url`.
-
-By default, `ctx.dataset` is row-preserving: one input row produces one output
-row, with original fields merged with the columns produced by
-`.withColumn(...)`. If one input entity must become many output rows, use the
-documented expand/flatten recipe instead of assuming `ctx.dataset` changes
-row cardinality.
-
-Signature: `dataset<TSource extends PlayDatasetInput<object>>( key: string, items: TSource, ): DatasetBuilder< PlayDatasetRow<TSource> & object, PlayDatasetRow<TSource> & object >;`
-
+Signature: `dataset<TSource extends PlayDatasetInput<object>>( key: string, items: TSource, ): DatasetBuilder< PlayDatasetRow<TSource> & object, PlayDatasetRow<TSource> & object, PlayAuthoringRuntimeContext >;`
 #### Parameters
 
 | Name | Type | Required | Description |
 |---|---|---:|---|
-| `key` | `string` | Yes | Dataset/table name. |
-| `items` | `TSource` | Yes | Input rows. |
+| `key` | `string` | Yes |  |
+| `items` | `TSource` | Yes |  |
 
 #### Returns
 
-`DatasetBuilder< PlayDatasetRow<TSource> & object, PlayDatasetRow<TSource> & object >`
+`DatasetBuilder< PlayDatasetRow<TSource> & object, PlayDatasetRow<TSource> & object, PlayAuthoringRuntimeContext >`
 
 
 ### `.dataset(...).withColumn(name, resolver).run(options)`
 
 Define one output column for every row in this dataset.
 
-The `name` becomes a field on each output row. For example,
-`.withColumn('contact', ...)` creates `row.contact` in later column resolvers; it does
-not spread returned object fields such as `contact.email` into `row.email`.
-Add a later column resolver when you want a top-level export field:
-`.withColumn('email', row => row.contact?.email ?? null)`.
-
 ```ts
-withColumn<Name extends string, Value>(
-    name: Name,
-    resolver: ColumnResolver<OutputRow, Value>,
-  ): DatasetBuilder<InputRow, OutputRow & Record<Name, Value>>;
+withColumn<Name extends string, Value>( name: Name, resolver: ColumnResolver<OutputRow, Value>, ): DatasetBuilder< InputRow, OutputRow & Record<Name, Value> >;
 
-withColumn<Name extends string, Value>(
-    name: Name,
-    definition: DatasetColumnDefinition<OutputRow, Value> & {
-      readonly runIf: (
-        row: OutputRow,
-        index: number,
-      ) => boolean | Promise<boolean>;
-    },
-  ): DatasetBuilder<InputRow, OutputRow & Record<Name, Value | null>>;
+withColumn<Name extends string, Value>( name: Name, definition: DatasetColumnDefinition< OutputRow, Value > & { readonly runIf: ( row: OutputRow, index: number, ) => boolean | Promise<boolean>; }, ): DatasetBuilder< InputRow, OutputRow & Record<Name, Value | null> >;
 
-withColumn<Name extends string, Value>(
-    name: Name,
-    definition: DatasetColumnDefinition<OutputRow, Value>,
-  ): DatasetBuilder<InputRow, OutputRow & Record<Name, Value>>;
+withColumn<Name extends string, Value>( name: Name, definition: DatasetColumnDefinition< OutputRow, Value >, ): DatasetBuilder< InputRow, OutputRow & Record<Name, Value> >;
 
-withColumn<Name extends string, Value>(
-    name: Name,
-    resolver:
-      | StepResolver<OutputRow, Value>
-      | StepProgramResolver<OutputRow, Value>,
-    options: StepOptions<OutputRow, Value>,
-  ): DatasetBuilder<InputRow, OutputRow & Record<Name, Value | null>>;
+withColumn<Name extends string, Value>( name: Name, resolver: | StepResolver<OutputRow, Value> | RunnableStepProgram<unknown, Value>, options: StepOptions<OutputRow, Value>, ): DatasetBuilder< InputRow, OutputRow & Record<Name, Value | null> >;
 
-run(options?: {
-    description?: string;
-    mode?: 'upsert' | 'net_new';
-    key?:
-      | (keyof InputRow & string)
-      | readonly (keyof InputRow & string)[]
-      | ((
-          row: InputRow,
-          index: number,
-        ) => string | number | readonly unknown[]);
-  }): Promise<PlayDataset<OutputRow>>;
+run( options?: DatasetRunOptions<InputRow>, ): Promise<PlayDataset<OutputRow>>;
 ```
 
 #### Column Overload 1 Parameters
 
 | Name | Type | Required | Description |
 |---|---|---:|---|
-| `name` | `Name` | Yes | Output column name. |
-| `resolver` | `ColumnResolver<OutputRow, Value>` | Yes | Computes the value for one row. |
+| `name` | `Name` | Yes |  |
+| `resolver` | `ColumnResolver<OutputRow, Value>` | Yes |  |
 
 #### Column Overload 1 Returns
 
-`DatasetBuilder<InputRow, OutputRow & Record<Name, Value>>`
+`DatasetBuilder< InputRow, OutputRow & Record<Name, Value> >`
 
 #### Column Overload 2 Parameters
 
 | Name | Type | Required | Description |
 |---|---|---:|---|
-| `name` | `Name` | Yes | Output column name. |
-| `definition` | `DatasetColumnDefinition<OutputRow, Value> & { readonly runIf: ( row: OutputRow, index: number, ) => boolean \| Promise<boolean>; }` | Yes | Object-column definition with required `runIf`. |
+| `name` | `Name` | Yes |  |
+| `definition` | `DatasetColumnDefinition< OutputRow, Value > & { readonly runIf: ( row: OutputRow, index: number, ) => boolean \| Promise<boolean>; }` | Yes |  |
 
 #### Column Overload 2 Returns
 
-`DatasetBuilder<InputRow, OutputRow & Record<Name, Value | null>>`
+`DatasetBuilder< InputRow, OutputRow & Record<Name, Value | null> >`
 
 #### Column Overload 3 Parameters
 
 | Name | Type | Required | Description |
 |---|---|---:|---|
-| `name` | `Name` | Yes | Output column name. |
-| `definition` | `DatasetColumnDefinition<OutputRow, Value>` | Yes | Object-column definition. |
+| `name` | `Name` | Yes |  |
+| `definition` | `DatasetColumnDefinition< OutputRow, Value >` | Yes |  |
 
 #### Column Overload 3 Returns
 
-`DatasetBuilder<InputRow, OutputRow & Record<Name, Value>>`
+`DatasetBuilder< InputRow, OutputRow & Record<Name, Value> >`
 
 #### Column Overload 4 Parameters
 
 | Name | Type | Required | Description |
 |---|---|---:|---|
-| `name` | `Name` | Yes | Output column name. |
-| `resolver` | `\| StepResolver<OutputRow, Value> \| StepProgramResolver<OutputRow, Value>` | Yes | Computes the value for one row. |
-| `options` | `StepOptions<OutputRow, Value>` | Yes | Row gate options. |
+| `name` | `Name` | Yes |  |
+| `resolver` | `\| StepResolver<OutputRow, Value> \| RunnableStepProgram<unknown, Value>` | Yes |  |
+| `options` | `StepOptions<OutputRow, Value>` | Yes |  |
 
 #### Column Overload 4 Returns
 
-`DatasetBuilder<InputRow, OutputRow & Record<Name, Value | null>>`
+`DatasetBuilder< InputRow, OutputRow & Record<Name, Value | null> >`
 
 #### Run Parameters
 
 | Name | Type | Required | Description |
 |---|---|---:|---|
-| `options` | `{ description?: string; mode?: 'upsert' \| 'net_new'; key?: \| (keyof InputRow & string) \| readonly (keyof InputRow & string)[] \| (( row: InputRow, index: number, ) => string \| number \| readonly unknown[]); }` | No | Run options. |
+| `options` | `DatasetRunOptions<InputRow>` | No |  |
 
 #### Run Returns
 
 `Promise<PlayDataset<OutputRow>>`
 
 Execute the row-column program and return a durable dataset handle.
-
-The returned [PlayDataset](/sdk-v2/sdk-reference#playdataset) preserves one output row per input row,
-with original fields merged with the columns produced by `.withColumn(...)`.
+`upsert` preserves row-by-row enrichment. `net_new` admits and returns only
+unseen stable keys. `isolate` records failed rows while siblings continue;
+`fail` opts into fail-fast behavior.
 
 ### `DatasetColumnRunInput`
 
@@ -522,9 +557,9 @@ Input object passed to an object-column `run` resolver.
 | Name | Type | Required | Description |
 |---|---|---:|---|
 | `row` | `Row` | Yes | Current row, including previously computed columns. |
-| `ctx` | `DeeplinePlayRuntimeContext` | Yes | Runtime context for tool/play/fetch/log calls. |
+| `ctx` | `DeeplinePlayRuntimeContext` | Yes | Runtime context for tool, Play, fetch, and log calls. |
 | `index` | `number` | Yes | Zero-based row index for this dataset run. |
-| `previousCell` | `PreviousCell<Value>` | No | The prior stored value for this exact row+column when the runtime has<br />decided the cell is due to run again. `previousCell.value` is the same type<br />this column returns; metadata such as `completedAt` and `staleAt` lives<br />beside it and is not mixed into the value. |
+| `previousCell` | `PreviousCell<Value>` | No | Prior stored cell value and freshness metadata when this cell reruns. |
 
 
 ### `DatasetColumnDefinition`
@@ -537,7 +572,7 @@ Use this when a column needs `runIf` or typed `previousCell`.
 
 | Name | Type | Required | Description |
 |---|---|---:|---|
-| `run` | `(input: DatasetColumnRunInput<Row, Value>) => Value \| Promise<Value>` | Yes | Compute one cell value. Receives the previous stored value when rerunning. |
+| `run` | `( input: DatasetColumnRunInput<Row, Value>, ) => Value \| Promise<Value>` | Yes | Compute one cell value. Receives the previous stored value when rerunning. |
 | `runIf` | `(row: Row, index: number) => boolean \| Promise<boolean>` | No | Optional row-level gate. Skipped rows produce `null` for this column. |
 
 
@@ -550,9 +585,9 @@ Options for row-level `.withColumn(...)` and `steps().step(...)` entries.
 | Name | Type | Required | Description |
 |---|---|---:|---|
 | `runIf` | `(row: Row, index: number) => boolean \| Promise<boolean>` | No | Optional row-level gate. Skipped rows produce `null` for this column. |
-| `recompute` | `boolean` | No | Legacy dataset-column recompute flag accepted for older authored plays.<br /><br />Prefer putting freshness on the actual reusable call<br />(`ctx.tools.execute`, `ctx.step`, or `ctx.fetch`). |
-| `recomputeOnError` | `boolean` | No | Legacy error-recompute flag accepted for older authored plays. |
-| `staleAfterSeconds` | `number` | No | Legacy cell staleness metadata accepted for older authored plays. |
+| `recompute` | `boolean` | No | Legacy dataset-column flag. Prefer freshness on the reusable call. |
+| `recomputeOnError` | `boolean` | No | Legacy error-recompute flag accepted for older authored Plays. |
+| `staleAfterSeconds` | `number` | No | Legacy cell staleness metadata accepted for older authored Plays. |
 
 
 ### `PreviousCell`
@@ -575,26 +610,16 @@ freshness metadata lives beside it.
 
 ### `ctx.step(id, fn)`
 
-Create one scalar checkpoint for the whole play run.
+Create one scalar durable checkpoint.
 
-Use `ctx.step` when a value is nondeterministic, expensive, external, or
-useful to inspect as a named boundary. The first execution stores the
-JSON-serializable output under `id`; replay and retries return the stored
-value instead of running `run` again.
-
-Plain deterministic assignment does not need `ctx.step`. Use
-`ctx.dataset(...).withColumn(...)`, not `ctx.step`, when the value should become a
-field on each exported row.
-
-Signature: `step<T>( id: string, run: () => T | Promise<T>, options?: { staleAfterSeconds?: number }, ): Promise<T>;`
-
+Signature: `step<T>( id: string, run: () => T | Promise<T>, options?: RuntimeStepOptions, ): Promise<T>;`
 #### Parameters
 
 | Name | Type | Required | Description |
 |---|---|---:|---|
-| `id` | `string` | Yes | Checkpoint id. |
-| `run` | `() => T \| Promise<T>` | Yes | Computes the value once. |
-| `options` | `{ staleAfterSeconds?: number }` | No | Checkpoint options. |
+| `id` | `string` | Yes |  |
+| `run` | `() => T \| Promise<T>` | Yes |  |
+| `options` | `RuntimeStepOptions` | No |  |
 
 #### Returns
 
@@ -603,25 +628,17 @@ Signature: `step<T>( id: string, run: () => T | Promise<T>, options?: { staleAft
 
 ### `ctx.runPlay(key, playRef, input, options)`
 
-Invoke another registered or file-backed play as a child workflow.
-
-Use this for real composition boundaries, especially when a fitting
-scalar prebuilt play already encodes provider order, fallbacks,
-normalization, and no-result behavior. Do not invoke plays through
-`ctx.tools.execute`; tools and plays are separate namespaces.
-
-`key` is the stable child-call identity for idempotency and traceability.
+Compose another Play inline under a stable call key.
 
 Signature: `runPlay<TOutput = unknown>( key: string, playRef: string | PlayReferenceLike, input: Record<string, unknown>, options: PlayCallOptions, ): Promise<TOutput>;`
-
 #### Parameters
 
 | Name | Type | Required | Description |
 |---|---|---:|---|
-| `key` | `string` | Yes | Stable child-call key. |
-| `playRef` | `string \| PlayReferenceLike` | Yes | Registered play name, play handle, or file-backed play reference. |
-| `input` | `Record<string, unknown>` | Yes | Input object passed to the child play. |
-| `options` | `PlayCallOptions` | Yes | Child play options. |
+| `key` | `string` | Yes |  |
+| `playRef` | `string \| PlayReferenceLike` | Yes |  |
+| `input` | `Record<string, unknown>` | Yes |  |
+| `options` | `PlayCallOptions` | Yes |  |
 
 #### Returns
 
@@ -630,15 +647,14 @@ Signature: `runPlay<TOutput = unknown>( key: string, playRef: string | PlayRefer
 
 ### `ctx.tools.execute(request)`
 
-Execute a single tool with a keyword-style request object.
+Execute a provider tool through the durable receipt contract.
 
-Signature: `execute<TOutput = LoosePlayObject>( request: ToolExecutionRequest, ): Promise<ToolExecuteResult<TOutput>>;`
-
+Signature: `execute<TOutput = PlayLooseObject>( request: PlayToolExecutionRequest, ): Promise<ToolExecuteResult<TOutput>>;`
 #### Parameters
 
 | Name | Type | Required | Description |
 |---|---|---:|---|
-| `request` | `ToolExecutionRequest` | Yes | Tool call request. |
+| `request` | `PlayToolExecutionRequest` | Yes |  |
 
 #### Returns
 
@@ -654,64 +670,40 @@ logical call name used for logs, metadata, and receipt attachment. Provider
 call reuse is keyed by play, tool, semantic input, auth scope, provider action
 version, and cache policy.
 
-#### Fields
-
-| Name | Type | Required | Description |
-|---|---|---:|---|
-| `id` | `string` | Yes | Stable logical id for logs, metadata, and receipt attachment. |
-| `tool` | `string` | Yes | Current tool id from `deepline tools search` / `deepline tools describe`. |
-| `input` | `Record<string, unknown>` | Yes | JSON-serializable provider/tool input object. |
-| `description` | `string` | No | Human-readable description for logs and run inspection. |
-| `force` | `boolean` | No | Recompute this tool call instead of reusing a durable receipt/checkpoint. |
-| `staleAfterSeconds` | `number` | No | Numeric TTL in seconds for this tool checkpoint. |
-| `timeoutMs` | `number` | No | Runtime transport timeout in milliseconds. This is not sent to the provider. |
-| `receiptWaitMs` | `number` | No | Follower wait budget in milliseconds before a running receipt is reclaimable. |
+Signature: `export type ToolExecutionRequest = PlayToolExecutionRequest;`
 
 
 ### `ctx.fetch(key, url, init)`
 
-Durable HTTP fetch.
+Execute a durable, replay-safe HTTP request.
 
-Use this for non-provider HTTP calls that must replay safely. The response
-is recorded under `key` so workflow replay sees the same value. Prefer
-`ctx.tools.execute(...)` for Deepline-managed provider APIs because tools
-handle auth, retries, rate limits, extraction metadata, and spend tracking.
-If `init.auth` comes from `ctx.secrets`, `url` must be https://.
-
-Signature: `fetch( key: string, url: string | URL, init?: SecretAwareRequestInit, options?: { staleAfterSeconds?: number }, ): Promise<{ ok: boolean; status: number; statusText: string; url: string; headers: Record<string, string>; bodyText: string; json: unknown | null; }>;`
-
+Signature: `fetch( key: string, url: string | URL, init?: PlaySecretAwareRequestInit, options?: FetchOptions, ): Promise<PlayFetchResponse>;`
 #### Parameters
 
 | Name | Type | Required | Description |
 |---|---|---:|---|
-| `key` | `string` | Yes | Checkpoint id. |
-| `url` | `string \| URL` | Yes | URL to fetch. |
-| `init` | `SecretAwareRequestInit` | No | Fetch options. |
-| `options` | `{ staleAfterSeconds?: number }` | No |  |
+| `key` | `string` | Yes |  |
+| `url` | `string \| URL` | Yes |  |
+| `init` | `PlaySecretAwareRequestInit` | No |  |
+| `options` | `FetchOptions` | No |  |
 
 #### Returns
 
-`Promise<{ ok: boolean; status: number; statusText: string; url: string; headers: Record<string, string>; bodyText: string; json: unknown | null; }>`
+`Promise<PlayFetchResponse>`
 
 
 ### `ctx.runSteps(program, input, options)`
 
-Run a reusable step program against one scalar input object.
+Execute one reusable step program against a scalar input.
 
-`steps().step(...)` is a composable mini-pipeline. Use `ctx.runSteps(...)`
-when that mini-pipeline should execute outside a row dataset. Inside a
-`ctx.dataset` column resolver, pass the step program directly to
-`.withColumn(name, program)` instead.
-
-Signature: `runSteps<TInput extends Record<string, unknown>, TOutput>( program: RunnableStepProgram<TInput, TOutput>, input: TInput, options?: { description?: string }, ): Promise<TOutput>;`
-
+Signature: `runSteps<TInput extends Record<string, unknown>, TOutput>( program: PlayAuthoringRunnableStepProgram< TOutput, PlayAuthoringRuntimeContext > & { readonly __inputType?: (input: TInput) => void }, input: TInput, options?: PlayAuthoringRunStepsOptions, ): Promise<TOutput>;`
 #### Parameters
 
 | Name | Type | Required | Description |
 |---|---|---:|---|
-| `program` | `RunnableStepProgram<TInput, TOutput>` | Yes | Step program. |
-| `input` | `TInput` | Yes | Program input. |
-| `options` | `{ description?: string }` | No | Run options. |
+| `program` | `PlayAuthoringRunnableStepProgram< TOutput, PlayAuthoringRuntimeContext > & { readonly __inputType?: (input: TInput) => void }` | Yes |  |
+| `input` | `TInput` | Yes |  |
+| `options` | `PlayAuthoringRunStepsOptions` | No |  |
 
 #### Returns
 
@@ -731,8 +723,9 @@ Deepline keeps row progress, retries, memory use, and table output under
 runtime control. Use `count()` and `peek()` for bounded inspection. Use
 `materialize(limit)` or async iteration only when the dataset is intentionally
 small and bounded. `PlayDataset` intentionally does not expose `.rows`,
-`.toArray()`, or other array aliases; those hide the runtime cost of loading
-persisted rows into memory.
+`.toArray()`, `.length`, numeric indexing, spread, or synchronous iteration;
+those hide the runtime cost of loading persisted rows into memory or make
+behavior depend on whether rows happen to be resident.
 
 #### Fields
 
@@ -763,6 +756,245 @@ previews.
 Signature: `export type ToolExecuteResult< TResult = unknown, TMeta = Record<string, unknown>, TExtracted extends Record<string, unknown> = Partial<DeeplineGetterValueMap>, TLists extends Record<string, Record<string, unknown>> = Record< string, Record<string, unknown> >, > = ToolExecuteResultBase<TResult, TMeta> & ToolExecuteResultAccessors<TExtracted, TLists>;`
 
 
+## Errors And Provider Fallthrough
+
+New Plays receive typed tool errors. Existing published artifacts keep the error contract stored with their revision.
+
+For a read waterfall, catch only `ProviderTransientError` and keep the final provider call loud. For structured diagnostics, narrow to `ToolExecutionError` and branch on its stable fields. Never branch on `error.message`.
+
+A newly authored Play can explicitly retain legacy errors with `compatibility: { toolErrorSchemaVersion: 0 }` in its `definePlay` options. Use that only while migrating old message-based handling.
+
+### `DeeplineError`
+
+Base error class shared by the SDK and play runtime.
+
+The global brand preserves `instanceof DeeplineError` when a bundled play
+and the runtime load separate physical copies of this module.
+
+Signature: `class DeeplineError extends Error`
+#### Members
+
+| Member | Kind | Purpose | Parameters | Returns / type |
+|---|---|---|---|---|
+| `constructor` | constructor | Construct a Deepline error.<br /><br />SDK and runtime code construct these errors. Application and Play code<br />normally catches the public subclasses instead. | `message: string` - Human-readable failure summary.<br />`statusCode?: number` - HTTP status when one exists.<br />`code?: string` - Stable machine-readable code when one exists.<br />`details?: Record<string, unknown>` - Local diagnostic context; never a portable error contract. |  |
+| `statusCode` | property | HTTP status when the failure crossed an HTTP boundary. |  | `number` |
+| `code` | property | Stable machine-readable error code when one exists. |  | `string` |
+| `details` | property | Local diagnostic context; not a portable error contract. |  | `Record<string, unknown>` |
+
+### `ToolExecutionErrorOrigin`
+
+The boundary responsible for a failed tool call.
+
+Use `provider` to distinguish a provider answer from caller input and
+Deepline infrastructure. `unknown` fails closed and must not trigger a
+waterfall fallback.
+
+Signature: `export type ToolExecutionErrorOrigin = | 'caller' | 'provider' | 'deepline' | 'unknown';`
+
+
+### `ToolExecutionErrorCategory`
+
+The stable reason family for a failed tool call.
+
+Branch on this field only after narrowing to `ToolExecutionError`. Catch
+`ProviderTransientError` when the policy is simply “try the next read
+provider”; it is the safer and shorter waterfall contract.
+
+Signature: `export type ToolExecutionErrorCategory = | 'validation' | 'authentication' | 'authorization' | 'rate_limit' | 'network' | 'upstream' | 'billing' | 'conflict' | 'internal' | 'unknown';`
+
+
+### `ToolExecutionNetworkKind`
+
+The transport failure observed when `category` is `network`.
+
+This is `null` for failures that are not network failures.
+
+Signature: `export type ToolExecutionNetworkKind = | 'timeout' | 'dns' | 'connect' | 'reset' | 'unavailable' | 'unknown';`
+
+
+### `ToolExecutionNetworkScope`
+
+The request boundary on which a network failure occurred.
+
+`deepline_to_provider` is provider-side. Client and runtime scopes are
+Deepline transport failures and never qualify as provider fallthrough.
+
+Signature: `export type ToolExecutionNetworkScope = | 'client_to_deepline' | 'runtime_to_deepline' | 'deepline_to_provider';`
+
+
+### `ProviderTransientErrorCategory`
+
+Provider-owned failure categories that may fall through to another read
+provider.
+
+Signature: `export type ProviderTransientErrorCategory = | 'rate_limit' | 'network' | 'upstream';`
+
+
+### `ToolExecutionFailureV1`
+
+Portable version-1 `tool_error` payload.
+
+This allowlisted shape crosses the API, runtime, and SDK boundaries.
+`message` remains on the Error object and is deliberately not a policy
+field.
+
+#### Fields
+
+| Name | Type | Required | Description |
+|---|---|---:|---|
+| `schemaVersion` | `typeof TOOL_EXECUTION_ERROR_SCHEMA_VERSION` | Yes | Payload version. |
+| `toolId` | `string` | Yes | Public tool id passed to `tools.execute`. |
+| `provider` | `string \| null` | Yes | Provider responsible for the operation, or `null`. |
+| `operation` | `string \| null` | Yes | Provider operation name, or `null`. |
+| `code` | `string \| null` | Yes | Stable machine-readable failure code, or `null`. |
+| `origin` | `ToolExecutionErrorOrigin` | Yes | Boundary responsible for the failure. |
+| `category` | `ToolExecutionErrorCategory` | Yes | Stable reason family. |
+| `retryable` | `boolean` | Yes | Whether repeating the same semantic call is delivery-safe. |
+| `statusCode` | `number \| null` | Yes | HTTP status when one exists, or `null`. |
+| `requestId` | `string \| null` | Yes | Provider or Deepline request id, or `null`. |
+| `retryAfterMs` | `number \| null` | Yes | Suggested same-call retry delay in milliseconds, or `null`. |
+| `networkKind` | `ToolExecutionNetworkKind \| null` | Yes | Network failure kind, or `null`. |
+| `networkScope` | `ToolExecutionNetworkScope \| null` | Yes | Network boundary that failed, or `null`. |
+
+
+### `ToolExecutionErrorOptions`
+
+Constructor input for a structured tool failure.
+
+Deepline creates these values while decoding the versioned wire payload.
+Customer code normally reads `ToolExecutionError` fields instead of
+constructing an error.
+
+Signature: `export type ToolExecutionErrorOptions = Omit< ToolExecutionFailureV1, 'schemaVersion' > & { details?: Record<string, unknown>; };`
+
+
+### `ToolExecutionError`
+
+A failed `tools.execute` call with stable, allowlisted provenance.
+
+`retryable` means Deepline's delivery/idempotency contract says it is safe
+to repeat the same semantic call. It does not describe durable receipt
+repairability and does not make arbitrary side-effecting fallbacks safe.
+
+In a Play, catch `ProviderTransientError` to continue a read waterfall and
+let every other `ToolExecutionError` remain loud. In an SDK client, catch
+this base class when you need structured diagnostics for every tool failure.
+
+Signature: `class ToolExecutionError extends DeeplineError`
+#### Members
+
+| Member | Kind | Purpose | Parameters | Returns / type |
+|---|---|---|---|---|
+| `constructor` | constructor | Construct a structured tool error.<br /><br />Deepline constructs this from the versioned `tool_error` payload.<br />Application and Play code should catch it rather than create it. | `message: string`<br />`options: ToolExecutionErrorOptions` |  |
+| `toolId` | property | Public tool id passed to `tools.execute`. |  | `string` |
+| `provider` | property | Provider responsible for the operation, or `null` when unattributed. |  | `string \| null` |
+| `operation` | property | Provider operation name, or `null` when unavailable. |  | `string \| null` |
+| `origin` | property | Boundary responsible for the failure. |  | `ToolExecutionErrorOrigin` |
+| `category` | property | Stable reason family for policy and diagnostics. |  | `ToolExecutionErrorCategory` |
+| `retryable` | property | Whether repeating the same semantic call is delivery-safe.<br /><br />This does not mean the error may be ignored. Waterfall fallthrough is<br />represented by `ProviderTransientError`. |  | `boolean` |
+| `requestId` | property | Provider or Deepline request id, or `null` when unavailable. |  | `string \| null` |
+| `retryAfterMs` | property | Suggested same-call retry delay in milliseconds, or `null`. |  | `number \| null` |
+| `networkKind` | property | Network failure kind, or `null` for non-network failures. |  | `ToolExecutionNetworkKind \| null` |
+| `networkScope` | property | Network boundary that failed, or `null` for non-network failures. |  | `ToolExecutionNetworkScope \| null` |
+
+### `ProviderTransientError`
+
+A provider-owned transient failure that is safe to handle as an empty
+waterfall leg. Validation, auth, billing, Deepline, and unknown failures
+never satisfy this type.
+
+`retryable` remains independent: it says whether the same semantic call may
+be repeated safely. Falling through to a different read provider depends on
+this class, not on `retryable`.
+
+Signature: `class ProviderTransientError extends ToolExecutionError`
+#### Members
+
+| Member | Kind | Purpose | Parameters | Returns / type |
+|---|---|---|---|---|
+| `constructor` | constructor | Constructed by Deepline when a provider-owned transient failure arrives. | `message: string`<br />`options: Omit<ToolExecutionErrorOptions, 'origin' \| 'category'> & { category: ProviderTransientErrorCategory; }` |  |
+| `origin` | property | Provider attribution is guaranteed for this subtype. |  | `"provider"` |
+| `category` | property | Provider failure category that made this error eligible for fallthrough. |  | `ProviderTransientErrorCategory` |
+
+### `AuthError`
+
+Thrown when the API rejects the request due to an invalid or missing API key.
+
+This maps to HTTP 401 responses. HTTP 403 means the caller was authenticated
+but lacks permission, so the SDK preserves the server's API error instead.
+The SDK never retries auth errors —
+they fail immediately.
+
+Fix: run `deepline auth register` to obtain a valid key, or pass one via
+the `apiKey` option or `DEEPLINE_API_KEY` environment variable.
+
+Signature: `class AuthError extends DeeplineError`
+#### Members
+
+| Member | Kind | Purpose | Parameters | Returns / type |
+|---|---|---|---|---|
+| `constructor` | constructor | Constructed by the SDK when Deepline rejects the caller's credentials. | `message?: string` |  |
+
+### `RateLimitError`
+
+Thrown when the API returns HTTP 429 (Too Many Requests).
+
+The SDK retries rate-limited requests automatically up to `maxRetries` times
+with exponential backoff. This error is only thrown when all retries are exhausted.
+
+Use `RateLimitError.retryAfterMs` to implement your own backoff if needed.
+
+Signature: `class RateLimitError extends DeeplineError`
+#### Members
+
+| Member | Kind | Purpose | Parameters | Returns / type |
+|---|---|---|---|---|
+| `constructor` | constructor | Constructed by the SDK after exhausting HTTP-level rate-limit retries. | `retryAfterMs?: number`<br />`message?: string` |  |
+| `retryAfterMs` | property | Milliseconds to wait before retrying, from the `Retry-After` response header. Defaults to 5000. |  | `number` |
+
+### `ToolRateLimitError`
+
+Tool-specific 429 preserving both historical RateLimitError catches and the
+structured ToolExecutionError ontology. JavaScript has one prototype chain,
+so this class extends RateLimitError and carries ToolExecutionError's stable
+cross-bundle brand.
+
+This class appears in external SDK calls after HTTP 429 retries are
+exhausted. It also satisfies `instanceof ToolExecutionError` and, for a
+provider-owned rate limit, `instanceof ProviderTransientError`. Authored
+Plays should use `ProviderTransientError`; they do not need this
+compatibility class.
+
+Signature: `class ToolRateLimitError extends RateLimitError`
+#### Members
+
+| Member | Kind | Purpose | Parameters | Returns / type |
+|---|---|---|---|---|
+| `constructor` | constructor | Constructed by the SDK after a structured tool HTTP 429. | `message: string`<br />`options: ToolExecutionErrorOptions` |  |
+| `toolId` | property | Public tool id passed to `tools.execute`. |  | `string` |
+| `provider` | property | Provider responsible for the operation, or `null`. |  | `string \| null` |
+| `operation` | property | Provider operation name, or `null`. |  | `string \| null` |
+| `code` | property | Stable machine-readable failure code when one exists. |  | `string \| undefined` |
+| `origin` | property | Boundary responsible for the failure. |  | `ToolExecutionError['origin']` |
+| `category` | property | Stable reason family for policy and diagnostics. |  | `ToolExecutionError['category']` |
+| `retryable` | property | Whether repeating the same semantic call is delivery-safe. |  | `boolean` |
+| `requestId` | property | Provider or Deepline request id, or `null`. |  | `string \| null` |
+| `networkKind` | property | Network failure kind, or `null` for non-network failures. |  | `ToolExecutionError['networkKind']` |
+| `networkScope` | property | Network boundary that failed, or `null` for non-network failures. |  | `ToolExecutionError['networkScope']` |
+
+### `ConfigError`
+
+Thrown when the SDK cannot resolve a valid configuration.
+
+Most commonly: no API key found in any of the resolution sources
+(explicit option, environment variable, CLI env files).
+
+Signature: `class ConfigError extends DeeplineError`
+#### Members
+
+| Member | Kind | Purpose | Parameters | Returns / type |
+|---|---|---|---|---|
+| `constructor` | constructor | Construct a local SDK configuration failure. | `message: string` |  |
 
 ## Tool And Provider Calls
 
@@ -777,7 +1009,6 @@ so provider calls become durable runtime checkpoints.
 Signature: `export type DeeplineToolsNamespace = { list(): Promise<ToolDefinition[]>; get(toolId: string): Promise<ToolMetadata>; execute( toolId: string, input: Record<string, unknown>, ): Promise<ToolExecuteResult>; };`
 
 
-
 ## Remote Plays And Runs
 
 ### `DeeplineContext.plays`
@@ -785,7 +1016,6 @@ Signature: `export type DeeplineToolsNamespace = { list(): Promise<ToolDefinitio
 Named-play discovery and handle operations from a connected `DeeplineContext`.
 
 Signature: `export type DeeplinePlaysNamespace = { list(): Promise<PlayListItem[]>; get<TInput = Record<string, unknown>, TOutput = unknown>( name: string, ): DeeplineNamedPlay<TInput, TOutput>; };`
-
 
 
 ### `DeeplineNamedPlay`
@@ -832,7 +1062,6 @@ Provides typed methods for every API endpoint: tools, plays, auth, and health.
 Handles authentication, retries, and localhost failover automatically.
 
 Signature: `class DeeplineClient`
-
 #### Members
 
 | Member | Kind | Purpose | Parameters | Returns / type |
@@ -849,6 +1078,7 @@ Signature: `class DeeplineClient`
 | `searchTools` | method | Search available tools using Deepline's ranked backend search.<br /><br />This is the same discovery surface used by the CLI: it ranks across<br />tool metadata, categories, agent guidance, and input schema fields. | `options?: ToolSearchOptions` | `Promise<ToolSearchResult>` |
 | `getTool` | method | Get detailed metadata for a single tool.<br /><br />Returns everything from `ToolDefinition` plus pricing info, sample<br />inputs/outputs, failure modes, and cost estimates. | `toolId: string` - Tool identifier (e.g. `"dropleads_search_people"`) | `Promise<ToolMetadata>` |
 | `describeModel` | method | Describe a Deepline Agent model and its provider-specific option surface.<br /><br />Combines live AI Gateway model metadata with Deepline's generated AI SDK<br />provider option registry so agents can construct `providerOptions`<br />payloads before executing `deeplineagent`.<br /><br />The returned option schemas describe accepted provider option shapes, not<br />guaranteed support for every model. Runtime AI SDK/Gateway errors remain<br />authoritative for model-gated values. | `model: string` - Gateway model id such as `"openai/gpt-5.5"` | `Promise<DeeplineAgentModelDescription>` |
+| `quoteInferenceTool` | method | Quote dynamic AI inference pricing for a concrete payload.<br /><br />The result separates a planning estimate from a proven authorization<br />maximum and contains Deepline credits only. | `toolId: 'ai_inference' \| 'deeplineagent'`<br />`payload: Record<string, unknown>` | `Promise<InferenceQuote>` |
 | `executeTool` | method | Execute a tool and return the standard execution envelope.<br /><br />The `toolResponse.raw` field contains the raw tool response.<br />`toolResponse.meta` contains tool/provider metadata.<br />Top-level fields such as `status`, `job_id`, and `billing` describe the<br />Deepline execution envelope. | `toolId: string`<br />`input: Record<string, unknown>`<br />`options?: ExecuteToolRawOptions` | `Promise<ToolExecution<TData, TMeta>>` |
 | `executeToolRaw` | method | Back-compatible alias for `executeTool`.<br /><br />Retained for callers that still use the older raw naming while the response<br />envelope remains the same. | `toolId: string`<br />`input: Record<string, unknown>`<br />`options?: ExecuteToolRawOptions` | `Promise<ToolExecution<TData, TMeta>>` |
 | `queryCustomerDb` | method | Run a bounded SQL query against the current mutable customer database.<br /><br />This query is not scoped to one play run. Use `client.runs` export actions<br />when the caller needs the rows produced by a specific run. | `input: { sql: string; maxRows?: number; }` | `Promise<CustomerDbQueryResult>` |
@@ -873,11 +1103,29 @@ Signature: `class DeeplineClient`
 | `listRuns` | method | List play runs using the public runs resource model.<br /><br />This is the SDK equivalent of:<br /><br />```bash<br />deepline runs list --play <play-name> --status failed --json<br />``` | `options: RunsListOptions` | `Promise<PlayRunListItem[]>` |
 | `observeRunEvents` | method | Observe one run's live events. Uses the Convex Run Snapshot subscription<br />transport first (ADR-0008), then falls back to the canonical SSE stream<br />when the subscription transport or its optional client modules are not<br />available. Pass `fallback: 'none'` to receive<br />`RunObserveTransportUnavailableError` instead. | `runId: string`<br />`options?: { signal?: AbortSignal; onNotice?: (message: string) => void; fallback?: 'sse' \| 'none'; }` | `AsyncGenerator<PlayLiveEvent>` |
 | `tailRun` | method | Read the canonical run stream until a terminal run status is observed.<br /><br />Tries the Convex Run Snapshot subscription transport first (ADR-0008);<br />when the server cannot serve it (grant endpoint missing/unconfigured or<br />Convex unreachable) it falls back — with one `onNotice` message — to the<br />support-window SSE stream below.<br /><br />Server stream windows are finite: they end cleanly at the function<br />ceiling even while the run keeps executing. A window that ends (cleanly<br />or via transient network error) without a terminal event triggers one<br />durable-status re-check followed by a backed-off reconnect, so long runs<br />tail to completion. Abort via `options.signal` to stop waiting. | `runId: string`<br />`options?: RunsTailOptions` | `Promise<PlayStatus>` |
+| `getRunInput` | method | Get the exact original input retained for a run. This is intentionally separate from status. | `runId: string` | `Promise<{ runId: string; input: Record<string, unknown> \| unknown[]; bytes: number; sha256: string \| null; replayedFromRunId: string \| null; }>` |
+| `rerun` | method | Start a fresh run from a prior run's retained input and pinned revision. | `runId: string` | `Promise<{ runId: string; replayedFromRunId: string; revisionId: string \| null; status: string; next: { inspect: string; input: string }; }>` |
 | `getRunLogs` | method | Fetch persisted logs for a run using the public runs resource model.<br /><br />This is the SDK equivalent of:<br /><br />```bash<br />deepline runs logs <run-id> --limit 200 --json<br />``` | `runId: string`<br />`options?: RunsLogsOptions` | `Promise<RunsLogsResult>` |
 | `getPlaySheetRows` | method | Export persisted runtime-sheet rows for a play dataset/table namespace.<br /><br />This is the SDK form of exporting `ctx.dataset(...).run()` output for a<br />specific play and optional run id. | `input: { playName: string; tableNamespace: string; runId?: string; limit?: number; offset?: number; rowMode?: 'output' \| 'all'; }` | `Promise<PlaySheetRowsResult>` |
 | `stopRun` | method | Stop a run by id using the public runs resource model.<br /><br />This is the SDK equivalent of:<br /><br />```bash<br />deepline runs stop <run-id> --reason "stale lock" --json<br />``` | `runId: string`<br />`options?: { reason?: string }` | `Promise<StopPlayRunResult>` |
 | `stopAllRuns` | method | Stop every active run visible to the current workspace.<br /><br />This is the SDK equivalent of:<br /><br />```bash<br />deepline runs stop-all --reason "stale lock" --json<br />```<br /><br />Use this when a failed parent run left child or waiting runs active and you<br />need to clear the workspace run-slot state without knowing each run id. | `options?: { reason?: string; }` | `Promise<StopAllPlayRunsResult>` |
 | `listPlays` | method | List callable plays visible to the workspace.<br /><br />Pass `origin: "prebuilt"` for Deepline-managed prebuilts or<br />`origin: "owned"` for org-owned plays. | `options?: { origin?: 'prebuilt' \| 'owned'; grep?: string; grepMode?: 'all' \| 'any' \| 'phrase'; }` | `Promise<PlayListItem[]>` |
+| `getNotificationSettings` | method | Read product-notification destinations, subscriptions, event catalog, and DLQ health. |  | `Promise<ProductNotificationSettings>` |
+| `connectNotificationSlack` | method | Start the Slack OAuth flow required by product notifications. | `options?: { successUrl?: string; failureUrl?: string; }` | `Promise<{ ok: boolean; redirect_url: string }>` |
+| `listNotificationSlackChannels` | method | List Slack channels visible to the connected Deepline Slack app. | `query?: string` | `Promise<{ identity: { teamId: string; teamName?: string }; channels: Array<{ id: string; name: string; isPrivate: boolean }>; }>` |
+| `setNotificationSlack` | method | Select the Slack channel used for product notifications. | `channel: string` | `Promise<unknown>` |
+| `testNotificationSlack` | method | Send one synchronous test ping and return Slack's delivery result. |  | `Promise<{ ok: boolean; deliveryId: string; state: string; message: string; }>` |
+| `disableNotificationSlack` | method | Disable Slack product notifications without deleting the OAuth connection. |  | `Promise<unknown>` |
+| `setNotificationSubscriptions` | method | Enable or disable event IDs from the server-provided notification catalog. | `eventTypes: string[]`<br />`enabled: boolean` | `Promise<unknown>` |
+| `listNotificationDlq` | method | List exhausted deliveries. Dead-lettered messages never replay automatically. | `limit?: number` | `Promise<unknown>` |
+| `getNotificationDlqDelivery` | method | Inspect one exhausted notification delivery. | `deliveryId: string` | `Promise<unknown>` |
+| `updateNotificationDlqDelivery` | method | Explicitly retry or archive one dead-lettered notification delivery. | `deliveryId: string`<br />`action: 'retry' \| 'archive'` | `Promise<unknown>` |
+| `getNotifications` | method | List the workspace's named notification rules. |  | `Promise<ProductNotificationSettings>` |
+| `listNotificationChannels` | method | List Slack channels available to an already-connected Slack integration. | `query?: string` | `Promise<{ identity: { teamId: string; teamName?: string }; channels: Array<{ id: string; name: string; isPrivate: boolean }>; }>` |
+| `createNotification` | method | Create a named notification routed through an existing provider integration. | `input: { name: string; provider: 'slack'; channel: string; eventTypes: string[]; }` | `Promise<unknown>` |
+| `updateNotification` | method | Update a notification's target, event selection, or enabled state. | `notificationId: string`<br />`input: \| { enabled: boolean } \| { name: string; channel: string; eventTypes: string[] }` | `Promise<unknown>` |
+| `testNotification` | method | Send a validation ping to one notification. | `notificationId: string` | `Promise<{ ok: boolean; deliveryId: string; state: string; message: string; }>` |
+| `deleteNotification` | method | Archive one notification without touching its provider integration. | `notificationId: string` | `Promise<{ deleted: boolean; id: string }>` |
 | `searchPlays` | method | Search callable plays and return compact play descriptions.<br /><br />Prebuilt plays are preferred by default because they have maintained<br />contracts and stable run behavior. | `options: { query: string; compact?: boolean; scope?: 'prebuilt' \| 'owned' \| 'all'; }` | `Promise<PlayDescription[]>` |
 | `getPlay` | method | Get the full definition and state of a named play.<br /><br />Returns the play's revision state (draft, live), recent runs,<br />sheet processing summary, and database URL. | `name: string` - Play name | `Promise<PlayDetail>` |
 | `describePlay` | method | Get a normalized play description suitable for agents and CLIs.<br /><br />The description includes runnable examples, input/output summaries, clone<br />guidance, revision state, and latest run metadata when available. | `name: string`<br />`options?: { compact?: boolean }` | `Promise<PlayDescription>` |
@@ -885,7 +1133,7 @@ Signature: `class DeeplineClient`
 | `listPlayVersions` | method | List saved versions for a named play.<br /><br />Returns immutable revision snapshots newest-first, including the revision<br />id needed for exact-version runs and live-version switching. | `name: string` - Play name<br />`options?: { full?: boolean }` | `Promise<PlayRevisionSummary[]>` |
 | `publishPlayVersion` | method | Make a play revision live.<br /><br />When `revisionId` is omitted, the current working revision becomes live.<br />The live version is what executes when the play is run by name without<br />specifying an explicit revision. | `name: string` - Play name<br />`request?: PublishPlayVersionRequest` - Optional explicit revision to make live | `Promise<PublishPlayVersionResult>` |
 | `deletePlay` | method | Delete an org-owned play definition, including its revisions, trigger<br />bindings, and local run records. Deepline prebuilt plays are read-only. | `name: string` | `Promise<DeletePlayResult>` |
-| `getSharePage` | method | Current share status for a play: the public page (if any), the published<br />copy, and the revision picker. Read-only. | `name: string` | `Promise<SharePageStatus>` |
+| `getSharePage` | method | Current share status for a play: the public page (if any), the published<br />copy, and the revision picker. Read-only. | `name: string`<br />`options?: { revisionId?: string }` | `Promise<SharePageStatus>` |
 | `publishSharePage` | method | Publish (or repoint) the play's public share page to a revision. Requires<br />`acknowledgedUnlisted: true` — the page is publicly viewable. Org-admin only. | `name: string`<br />`request: PublishSharePageRequest` | `Promise<SharePageStatus>` |
 | `updateSharePage` | method | Update share-page settings (SEO indexing, credit-cost / latency display)<br />without moving the published pointer. Org-admin only. | `name: string`<br />`request: UpdateSharePageRequest` | `Promise<SharePageStatus>` |
 | `unpublishSharePage` | method | Unshare: hard-delete the play's public page and its cards. Returns the<br />fresh status (now `share: null`). Org-admin only. Idempotent — a no-op when<br />the play was never published. | `name: string` | `Promise<SharePageStatus>` |
@@ -896,7 +1144,12 @@ Signature: `class DeeplineClient`
 | `getBillingSubscriptionStatus` | method | Subscription state for the active workspace: active plan, whether a<br />Stripe subscription backs it, renewal/cancellation facts, and remaining<br />Deepline credit pools. Prefer `client.billing.subscription.status()`. |  | `Promise<BillingSubscriptionStatus>` |
 | `cancelBillingSubscription` | method | Schedule subscription cancellation at period end, or reverse a pending<br />cancellation with `{ undo: true }`. The customer keeps the cycle they<br />paid for and every remaining credit — cancellation never claws back<br />credits. Prefer `client.billing.subscription.cancel(...)`. | `options?: { undo?: boolean; }` | `Promise<BillingSubscriptionCancelResult>` |
 | `listBillingInvoices` | method | Customer-facing billing history: subscription invoices plus one-time<br />credit purchase receipts, newest first, with Stripe-hosted links.<br />Prefer `client.billing.invoices.list(...)`. | `options?: { limit?: number; }` | `Promise<BillingInvoicesResult>` |
-| `health` | method | Check API connectivity and server health. |  | `Promise<{ status: string; version?: string }>` |
+| `getTargetBillingPlans` | method | List the reviewed target plans and whether new acquisition is enabled. |  | `Promise<TargetBillingPlansResult>` |
+| `getTargetBillingStatus` | method | Read the workspace's normalized target plan, payment, and balance state. |  | `Promise<TargetBillingStatusResult>` |
+| `purchaseTargetBillingCredits` | method | Purchase target-billing credits through the durable commercial operation<br />flow. The caller supplies an idempotency key for safe retries. | `options: { credits: number; idempotencyKey: string; }` | `Promise<TargetBillingMutationResult>` |
+| `transitionTargetBillingPlan` | method | Start, change, cancel, or restore a target plan through one idempotent<br />commercial operation. | `options: TargetBillingPlanTransitionOptions` | `Promise<TargetBillingMutationResult>` |
+| `createTargetBillingPortalSession` | method | Create a Stripe-hosted portal session for payment recovery and invoices. |  | `Promise<{ url: string }>` |
+| `health` | method | Check API connectivity and server health. |  | `Promise<{ status: string; version?: string; status_banner?: { message: string; updatedAt: number; }; }>` |
 
 ### `client.runs`
 
@@ -911,6 +1164,8 @@ logs, and exporting durable dataset rows.
 | Name | Type | Required | Description |
 |---|---|---:|---|
 | `get` | `(runId: string, options?: RunsGetOptions) => Promise<PlayStatus>` | Yes | Get current run status by public run id. |
+| `input` | `(runId: string) => Promise<{ runId: string; input: Record<string, unknown> \| unknown[]; bytes: number; sha256: string \| null; replayedFromRunId: string \| null; }>` | Yes | Explicitly read the retained original input (may include customer data). |
+| `rerun` | `(runId: string) => Promise<{ runId: string; replayedFromRunId: string; revisionId: string \| null; status: string; next: { inspect: string; input: string }; }>` | Yes | Start a fresh run from a prior run's retained input and pinned revision. |
 | `list` | `(options: RunsListOptions) => Promise<PlayRunListItem[]>` | Yes | List runs for one play, optionally filtered by status. |
 | `tail` | `(runId: string, options?: RunsTailOptions) => Promise<PlayStatus>` | Yes | Stream run events and return the latest/terminal run status. |
 | `logs` | `(runId: string, options?: RunsLogsOptions) => Promise<RunsLogsResult>` | Yes | Fetch persisted log lines for a run. |
@@ -923,9 +1178,8 @@ logs, and exporting durable dataset rows.
 
 Public billing namespace exposed as `client.billing`.
 
-Carries the durable Deepline billing product model — plans, subscription
-state, period-end cancellation, and invoice/receipt history — so CLI
-commands and programmatic callers share the same surface.
+Carries plans, subscription state, cancellation, and invoice/receipt history
+so CLI commands and programmatic callers share one surface.
 
 #### Fields
 
@@ -935,6 +1189,11 @@ commands and programmatic callers share the same surface.
 | `plans` | `() => Promise<BillingPlansResult>` | Yes | Published plans plus the plan you are on ("what plans exist and what am I on"). |
 | `subscription` | `{ status: () => Promise<BillingSubscriptionStatus>; cancel: (options?: { undo?: boolean; }) => Promise<BillingSubscriptionCancelResult>; }` | Yes |  |
 | `invoices` | `{ list: (options?: { limit?: number }) => Promise<BillingInvoicesResult>; }` | Yes |  |
+| `targetPlans` | `() => Promise<TargetBillingPlansResult>` | Yes | Metronome-authored target catalog and current Contract projection. |
+| `targetStatus` | `() => Promise<TargetBillingStatusResult>` | Yes | Normalized target billing state. |
+| `purchaseCredits` | `(options: { credits: number; idempotencyKey: string; }) => Promise<TargetBillingMutationResult>` | Yes | Buy Deepline credits through a payment-gated Metronome commit. |
+| `transitionPlan` | `( options: TargetBillingPlanTransitionOptions, ) => Promise<TargetBillingMutationResult>` | Yes | Start, change, cancel, or undo a target plan transition. |
+| `portalSession` | `() => Promise<{ url: string }>` | Yes | Create a Stripe-hosted billing Portal session. |
 
 
 ### `client.monitors`
@@ -957,6 +1216,8 @@ delete/reactivate through this namespace.
 | `deploy` | `( definition: MonitorDefinition, options?: { dryRun?: boolean }, ) => Promise<MonitorDeployResult>` | Yes | Deploy a monitor from a definition. May spend Deepline credits. |
 | `list` | `(options?: MonitorsListOptions) => Promise<MonitorsListResult>` | Yes | List deployed monitors (active by default). |
 | `get` | `(key: string) => Promise<MonitorDetail>` | Yes | Fetch one deployed monitor by public key (without dependents). |
+| `test` | `( key: string, payload: Record<string, unknown>, options?: { validationOnly?: boolean }, ) => Promise<MonitorTestResult>` | Yes | Test a deployed monitor. `validationOnly` safely verifies the callback<br />envelope; omitted options preserve the historic full-ingestion behavior. |
+| `validate` | `(key: string) => Promise<MonitorValidateResult>` | Yes |  |
 | `dependents` | `(key: string) => Promise<MonitorDependents>` | Yes | List the published plays depending on one monitor's output streams. |
 | `update` | `( key: string, patch: Record<string, unknown>, ) => Promise<MonitorUpdateResult>` | Yes | Update a deployed monitor by public key. |
 | `delete` | `( key: string, options?: { localOnly?: boolean; dryRun?: boolean }, ) => Promise<MonitorDeleteResult>` | Yes | Delete a deployed monitor by public key. Deprovisions the upstream provider<br />resource unless `localOnly` is set. `dryRun` returns the delete plan. |

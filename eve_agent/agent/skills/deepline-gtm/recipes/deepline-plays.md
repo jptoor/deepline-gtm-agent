@@ -30,6 +30,20 @@ Read budget: normal tasks should use this recipe plus at most one plays referenc
 
 Safe planning-only commands: auth/health/balance, `plays search`, `plays describe`, `tools search`, `tools describe`, `plays check`, `plays bootstrap --help`, and local scaffolding. Do not call `plays run` or provider execution in planning-only mode.
 
+### Trigger notification handoff
+
+After publishing a cron- or webhook-triggered play, verify the product notification path. Do not assume the trigger can report its own failure.
+
+```bash
+deepline notifications list
+deepline notifications events
+deepline notifications slack channels --search pipeline
+deepline notifications add pipeline-watchdog --to slack:#pipeline-alerts --for play.cron.failed
+deepline notifications test pipeline-watchdog
+```
+
+Slack OAuth belongs in Dashboard → Integrations. This CLI only configures named notifications: each one selects a connected provider target and the Play events it receives. Use `deepline notifications list` before editing a rule; do not guess event IDs. Delivery retries and dead-letter handling are bounded internal reliability behavior, not a customer configuration surface.
+
 ## Which Path
 
 | Situation                                                           | First commands                                                                                      | Gate                                                        |
@@ -126,7 +140,28 @@ Authoring rules:
 - Return datasets for CSV/exportable outputs.
 - Use declared getters. Do not parse raw payload paths when `extractedValues.*.get()` or `extractedLists.*.get()` exists.
 - For query tools such as `query_customer_db` and `snowflake_run_query`, treat `toolResponse.raw.rows` as an inline preview/debug field. Use `result.extractedLists.rows.get()` and return that Dataset Handle for full-row export.
+- Dataset Handles are async-only, regardless of whether rows are already in memory. Use `await rows.count()`, `await rows.first()`, `await rows.at(index)`, `await rows.peek(limit)`, `await rows.materialize(limit)`, or `for await...of`. Do not use `.length`, numeric indexing, spread, or synchronous `for...of`.
 - Project to flat user-facing columns with `status`, `miss_reason`, evidence/source, and requested output fields.
+
+### Provider fallthrough
+
+New Plays receive typed tool failures. Catch only `ProviderTransientError` when
+another read provider can answer the same question. Let validation,
+authentication, billing, Deepline, and unknown failures stop the Play. Keep the
+last provider call outside the catch so an exhausted waterfall fails loudly.
+
+```
+try {
+  return await primary();
+} catch (error) {
+  if (!(error instanceof ProviderTransientError)) throw error;
+}
+return fallback();
+```
+
+Do not branch on error messages or catch `ToolExecutionError` as a generic
+fallthrough signal. The generated SDK reference documents every stable field,
+the `retryable` distinction, and the explicit legacy-contract option.
 
 ## Exact Syntax Escrow
 

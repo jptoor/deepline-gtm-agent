@@ -12,17 +12,17 @@ deepline csv show --csv <input.csv> --summary
 
 Route by the identifiers each row has:
 
-| You have                                                            | You need                     | Pattern category                                   | Discover with                                   |
-| ------------------------------------------------------------------- | ---------------------------- | -------------------------------------------------- | ----------------------------------------------- |
-| `first_name`, `last_name`, `domain`                                 | work email                   | name + domain → work email waterfall               | `deepline plays search email --json`            |
-| name + `company_name` (no domain), or `/sales/lead/` URL            | work email                   | resolve domain first, then name + domain waterfall | discovery, then domain → email                  |
-| `/in/` LinkedIn URL + name                                          | work email                   | linkedin profile → work email waterfall            | `deepline plays search email --json`            |
-| `email`                                                             | hydrated person + company    | reverse contact enrichment                         | `deepline plays search contact --json`          |
-| name + `domain` (+ optional email/linkedin)                         | phone number                 | identity → phone waterfall                          | `deepline plays search phone --json`            |
-| name + `company_name` (+ optional linkedin)                         | job-change status            | job-change detection + verification                | `deepline plays search "job change" --json`     |
-| existing `email`                                                    | validation status + verdict  | email verifier                                     | `deepline tools search "email verifier" --json` |
-| name, optional company                                              | LinkedIn profile URL         | name → LinkedIn URL waterfall                       | `deepline plays search linkedin --json`         |
-| row + ICP description                                               | tier / fit classification    | structured AI column with `jsonSchema`             | (see AI research)                               |
+| You have                                                 | You need                    | Pattern category                                   | Discover with                                   |
+| -------------------------------------------------------- | --------------------------- | -------------------------------------------------- | ----------------------------------------------- |
+| `first_name`, `last_name`, `domain`                      | work email                  | name + domain → work email waterfall               | `deepline plays search email --json`            |
+| name + `company_name` (no domain), or `/sales/lead/` URL | work email                  | resolve domain first, then name + domain waterfall | discovery, then domain → email                  |
+| `/in/` LinkedIn URL + name                               | work email                  | linkedin profile → work email waterfall            | `deepline plays search email --json`            |
+| `email`                                                  | hydrated person + company   | reverse contact enrichment                         | `deepline plays search contact --json`          |
+| name + `domain` (+ optional email/linkedin)              | phone number                | identity → phone waterfall                         | `deepline plays search phone --json`            |
+| name + `company_name` (+ optional linkedin)              | job-change status           | job-change detection + verification                | `deepline plays search "job change" --json`     |
+| existing `email`                                         | validation status + verdict | email verifier                                     | `deepline tools search "email verifier" --json` |
+| name, optional company                                   | LinkedIn profile URL        | name → LinkedIn URL waterfall                      | `deepline plays search linkedin --json`         |
+| row + ICP description                                    | tier / fit classification   | structured AI column with `jsonSchema`             | (see AI research)                               |
 
 Plays encode provider sequencing, validation, row progress, and retry behavior — row-level enrichment should run through a prebuilt or scratchpad play, not loose `tools execute` calls. Keep custom `definePlay(...)` names short (`email-wf`, `phone-wf`, `company-fit`): the persisted sheet table is `normalized play name + ctx.dataset key`, and Postgres caps that combined identifier at 63 characters.
 
@@ -46,7 +46,12 @@ const enriched = await ctx
     const result = await rowCtx.runPlay<{ email: string | null }>(
       'linkedin_email',
       'prebuilt/person-linkedin-to-email',
-      { linkedin_url: row.linkedin_url, first_name: row.first_name, last_name: row.last_name, domain: row.domain },
+      {
+        linkedin_url: row.linkedin_url,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        domain: row.domain,
+      },
       { description: 'Resolve work email from LinkedIn profile.' },
     );
     return result.email ?? null;
@@ -55,6 +60,8 @@ const enriched = await ctx
 ```
 
 Drop to `ctx.tools.execute(...)` only when you need one explicit provider call the prebuilt does not expose. For manual provider fallback, pick the order by measuring marginal coverage per cost on a golden set (`../shared/correctness.md`), not by vendor reputation; give each attempt a stable `id` and stop on first useful result. Prefer `steps(...).step(...).return(...)` so every attempt becomes its own visible, cached column.
+
+**Probe the discovery provider's real output before hand-authoring.** The reruns in a custom composition come from provider output shape, not logic. Run the discovery tool once (`deepline tools execute <ref> --input '{...}' --json`), inspect the real payload, then **derive the row key from a guaranteed-present field** (a domain, a stable id) and **assume identifiers can be null** — a LinkedIn URL, a phone, a secondary email are all optionally absent. Keying a `ctx.dataset` on an identifier that some rows lack is what cost a CTO pilot its rerun loop: blank-LinkedIn rows broke the row key, forcing an edit→preflight→run cycle a five-second probe would have prevented.
 
 ### Durable enrichment gotchas
 
@@ -67,6 +74,26 @@ Drop to `ctx.tools.execute(...)` only when you need one explicit provider call t
 - **Email domain ≠ company domain.** After recovery, compare each row's email domain against the company domain it should belong to. Mismatches are often previous-employer or wrong-person matches; more than ~20% mismatch means the contact-finding step needs re-running with better company disambiguation.
 
 Inside a play, tool results serialize like `deepline tools execute --json`: execution metadata is top-level, raw provider data is `toolResponse.raw`, tool metadata is `toolResponse.meta`, semantic extractions are `extractedValues` / `extractedLists`.
+
+## Compare first, then build the waterfall
+
+For enrichment with uncertain coverage, follow `../SKILL.md`:
+
+1. Put viable routes, including the cheapest prebuilt, into one task-authored
+   Play with `research-experiment.ts` claim contracts and
+   `research-portfolio.ts` action cards.
+2. Bind raw evidence and verify each candidate field before it can close a
+   claim. A retrieved person or URL is a lead, not a filled field.
+3. Compare verified coverage, required-row completeness, independent evidence
+   contribution, failures, and marginal Deepline credits on the same golden
+   rows.
+4. Build the production waterfall from the measured portfolio, re-planning
+   after every action and applying the field-specific validators required for
+   delivery.
+
+This comparison is intentionally parallel. Starting with one cheap provider
+and scaling it before the bake-off turns that provider's private coverage
+ceiling into an untested assumption.
 
 ## When the primary route misses
 
@@ -95,7 +122,10 @@ const research = await ctx.tools.execute({
     prompt: `Research ${row.company_name} (${row.domain}). Return JSON with what_they_build and who_they_sell_to.`,
     jsonSchema: {
       type: 'object',
-      properties: { what_they_build: { type: 'string' }, who_they_sell_to: { type: 'string' } },
+      properties: {
+        what_they_build: { type: 'string' },
+        who_they_sell_to: { type: 'string' },
+      },
       required: ['what_they_build', 'who_they_sell_to'],
       additionalProperties: false,
     },
@@ -104,7 +134,14 @@ const research = await ctx.tools.execute({
 });
 ```
 
-Tier/ICP classification is the same tool with an enum `jsonSchema` and a `reason` field, grounded only on the provided context. For ICP-engagement classification on a list of people (reactors on a post), confirm a prebuilt with `deepline plays search "icp" --json`.
+Scoring and qualification are claim-contract decisions. A bounded AI step may
+prioritize an already retrieved lead shortlist, but it cannot verify a fact,
+complete a row, or override a deterministic evidence gate. Record its output
+as source-bound supplemental evidence and let `research-experiment.ts` decide
+whether the claim passes.
+
+- **Person vs ICP → tier:** run the prebuilt `prebuilt/engagers-to-icp-qualification`. Its output is `{ icp_tier: 'tier1' | 'tier2' | 'tier3', icp_reason }`: a structured tier plus a one-sentence reason, exactly the ICP-engagement classification a list of reactors needs.
+- **Anything else** (account/company fit, a custom lead score, a ranking): call `deeplineagent` with a constrained `jsonSchema` (the block above), or `enrich --with '{"tool":"deeplineagent","payload":{"prompt":...,"jsonSchema":...}}'`. Use an enum for a tier plus a `reason` field, grounded only on the provided context.
 
 **Flatten structured output before deterministic reuse.** `deeplineagent` structured columns are wrapped in a result envelope. Interpolating `{{column}}` into another prompt usually works; field-level `{{column.field}}` does not. When a downstream step needs a field, add a plain-TypeScript flatten column that emits a scalar — the structured payload is at `toolResponse.raw.extracted_json`.
 

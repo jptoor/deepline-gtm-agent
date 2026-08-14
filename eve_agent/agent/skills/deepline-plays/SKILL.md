@@ -1,6 +1,6 @@
 ---
 name: deepline-plays
-description: "Use this skill for any GTM Engineering work in Deepline — prospecting, list-building, account research, contact enrichment, email/phone/LinkedIn lookup, ICP qualification, lead scoring, outreach copy, CSV-driven row work, and verifying enriched data. Triggers on phrases like 'enrich this CSV', 'find contacts at these companies', 'build a TAM list', 'waterfall emails for these leads', 'detect job changes', 'is this data accurate', 'write a sequence for', and on any request that mentions Deepline, plays, or named GTM providers (Crustdata, Hunter, Dropleads, etc.). Use this even when the user does not explicitly say 'GTM' — most CSV-with-leads tasks and most provider-driven enrichment tasks are GTM tasks. SKIP only when the request is a Clay table extraction (use clay-to-deepline) or has no Deepline / outbound / data-enrichment dimension at all."
+description: 'Design and run custom adaptive Deepline GTM Plays.'
 ---
 
 # Deepline Plays
@@ -16,96 +16,315 @@ deepline auth status
 deepline -h
 ```
 
-Deepline is a TypeScript SDK and CLI for GTM execution: durable, typed workflows (plays) that call providers, create row datasets, run waterfalls, validate, and produce CSVs. The job: take an ICP and turn it into an enriched, scored dataset the customer trusts enough to act on. Every AI-filled or provider-filled cell is a claim until verified, so correctness is a phase of the work, not an afterthought.
+Build an agent-authored executable that allocates a bounded retrieval budget to
+the next highest-value evidence move. The agent designs the strategy space; the
+Play collects durable evidence; deterministic kernels decide whether to explore,
+exploit, stop, or promote.
 
-Optimize in one order: **maximize trust first, then correctness, then price — in that order.** Trust is the session itself (route map up front, real rows early, a scoreboard at each checkpoint); correctness is whether the cells survive verification; price is a refactor-phase concern the golden loop handles last. Never trade the first two for the third. That ordering is also the standing question — asked on every route and again after every delivery: **can this be more trustworthy, more accurate, cheaper?** A route that shipped yesterday is a candidate for today's comparison run; single-provider defaults calcify, measured options compound. The journey is: **define the ICP → find → enrich → verify → write → deliver.** New or uncertain routes are built test-first against a golden set of known-truth rows (`shared/correctness.md`) before they earn a full run.
+## Contract
 
-> **Names of plays and tools are starting hints. The CLI is the live source of truth.**
->
-> Tool IDs and play names get renamed, deprecated, and added constantly. Confirm any name before spending:
->
-> - `deepline tools list --json` — enumerate the tool categories; `deepline tools list <category> --json` lists EVERY tool in one category. **Browse first**: enumerate categories → exhaustive category listing → `describe`. This is complete recall — use it before concluding a provider class doesn't exist.
-> - `deepline tools search <query> --json` — ranked search, for a cross-cutting filter, not an inventory.
-> - `deepline plays search <category> --json` — find the current canonical play for a pattern.
-> - `deepline plays describe <name> --json` / `deepline tools describe <id> --json` — confirm the input contract before invoking.
->
-> When unsure about command shape, run `deepline <command> --help` before guessing flags.
+- Start from a row contract: final fields, acceptance semantics, evidence
+  requirements, denominator, freshness, and permitted unresolved fields.
+- The agent writes the Play, mappings, claim policies, action cards, literal
+  provider calls, adapters, and output projection. Never ask the user to choose
+  a provider, source mapping, or prebuilt Play that the agent can determine.
+- Treat a provider call as an **action** that may advance one or more claims,
+  not as a monolithic workflow. A row can combine discovery from a registry,
+  proof from an official page, a people lead, a current-role validator, and a
+  private join.
+- Keep every selected fact inside the completed Play. Browser or terminal
+  research may orient the agent, but it cannot repair a final row after the
+  Play runs because it has no receipt, source binding, or replay path.
+- Use AI to design hypotheses, adapters, semantic acceptance, and the next
+  source family. Do not use an AI answer as evidence or invoke one research
+  model call per candidate.
 
-## Choose the right surface
+Names in this skill are hints, not contracts. Discover live capabilities with
+`deepline tools search`, then inspect the exact contract, price, and output
+shape with `deepline tools describe <tool-id> --json` before authoring a paid
+action.
 
-All surfaces hit the same backend. Use the **CLI** to discover, invoke, inspect, promote. Use a **prebuilt play** when the registry already has the business pattern and the contract fits — column aliases are an invocation concern, not a reason to copy code. Use a **custom `*.play.ts`** when the work has multiple durable boundaries: source rows, provider calls, datasets, validation, scoring, branching, export shape, reruns. Direct `tools execute` calls are probes, not pipelines. Use the programmatic client (`Deepline.connect()`) only from external Node apps, never inside a play body.
+## Decision matrix
 
-Custom-play lifecycle: write `my-play.play.ts` with `definePlay` → run locally (`deepline plays run ./my-play.play.ts --input '{...}' --watch`) → inspect and edit the same file (the play accumulates checkpointed stages, so reruns reuse completed work) → promote when stable (`deepline plays set-live ./my-play.play.ts`), then invoke by name or via `ctx.runPlay`.
+| The user needs                                               | Controller shape                                            | Read                                          |
+| ------------------------------------------------------------ | ----------------------------------------------------------- | --------------------------------------------- |
+| A list from scratch, plus evidence-rich company/contact rows | discovery pool → eligibility gates → adaptive claim actions | `references/company-research-from-scratch.md` |
+| One or more unsupported claims on known rows                 | one-step gap controller over row-scoped action cards        | `references/adaptive-research.md`             |
+| A private/public/source-plan decision before execution       | broad source fanout and source-plan synthesis               | `deepline-pre-research`                       |
+| A known list that needs ordinary enrichment                  | existing Play or one custom row program                     | `jobs/enriching.md`                           |
+| A broad ICP or contact search                                | candidate-set generation and filtering                      | `jobs/finding.md`                             |
 
-## Execution philosophy: everything in the play, iteration is nearly free
+Use a named prebuilt directly only when its declared input and output contract
+already satisfies the full request. Otherwise wrap or replace it with a custom
+Play; a prebuilt route can be one action card, never an unexamined strategy.
 
-**If it touches a provider, it belongs in play code** — probes, parallel fan-outs, waterfalls, research columns, exports. Only the play gets durability, receipts, a runtime sheet, and governed parallelism; a bare `tools execute` is for sniffing one contract, and a shell loop of them is the anti-pattern. Fire independent calls concurrently with ordinary `Promise.all` — the runtime still owns rate limits, retries, and billing, so parallelism costs nothing but the wall-clock it saves.
+## The two kernels
 
-**The cache makes iteration nearly free — build like it.** Every tool call writes a content-addressed receipt (tool + input; misses included) and every filled cell is reused across runs, so a rerun after an edit re-pays only what changed. Do not hoard runs or fear re-running: grow the play one stage at a time, rerun constantly, and let the cache carry the known-good prefix. This is also why exploring is cheap — run candidate routes in parallel on a small sample, measure, keep the winner (`shared/correctness.md`), and only the loser's spend is ever wasted, once.
+Copy both portable helpers into the workspace before authoring an unproven
+research workflow:
 
-Runtime primitives, composition, authoring traps, and parallelism live in `shared/authoring.md`. Exact SDK signatures: https://deepline.com/docs/sdk-v2/sdk-reference. HTTP invocation: https://deepline.com/docs/sdk-v2/api-reference.
-
-## Choose your job
-
-Read the matching doc before executing. The rules here apply to every task; the docs encode what previous runs learned the expensive way.
-
-| If you're about to…                                                    | Read                          |
-| ---------------------------------------------------------------------- | ----------------------------- |
-| Find companies and contacts (no rows yet)                              | `jobs/finding.md`             |
-| Fill columns on existing rows: emails, phones, signals, AI research    | `jobs/enriching.md`           |
-| Write per-row outreach copy off research columns                       | `jobs/writing.md`             |
-| Build, copy, customize, or debug a custom `*.play.ts` file             | `shared/authoring.md`         |
-| Rank an uncertain route, or QA/verify a dataset before shipping        | `shared/correctness.md`       |
-| Diagnose a run that failed, stalled, or produced wrong output          | `references/debugging.md`     |
-| Look up exact SDK signatures or HTTP contracts                         | the two hosted doc URLs above |
-| **Exit:** extract / convert a Clay table                               | route to `clay-to-deepline`   |
-
-Multi-phase tasks read the jobs docs in order (finding → enriching → writing) and `shared/correctness.md` before shipping.
-
-## Execution loop
-
-Once the job doc names the pattern category, this loop finds the current canonical tool/play and confirms its contract. Skipping it means guessing at names, input shapes, or auth state the CLI would answer for free.
-
-```
-1. Confirm runtime is healthy:        deepline health
-2. Confirm auth is registered:        deepline auth status --json   (not registered -> deepline auth register)
-3. For CSV tasks, inspect row shape:  deepline csv show --csv rows.csv --summary
-4. Discover the right tool or play:   deepline tools list <category> --json
-                                      deepline plays search <category> --json
-5. Confirm the input contract:        deepline tools describe <id> --json
-                                      deepline plays describe <reference> --json
-6. Either:
-   a) run a prebuilt directly:        deepline plays run <name> --input '{...}' --watch
-                                      deepline plays run <name> --csv rows.csv --columns.domain Website --watch
-   b) write a *.play.ts file and run: deepline plays run <file.play.ts> --csv rows.csv --watch
-7. Inspect and export:                deepline runs get <id> --full --json
-                                      deepline runs export <run-id> --out <path>
-8. Verify before delivering:          shared/correctness.md
+```bash
+for dir in \
+  "$PWD/.skills/deepline-plays" \
+  "$HOME/.claude/skills/deepline-plays" \
+  "$HOME/.agents/skills/deepline-plays"; do
+  [ -f "$dir/plays/shared/research-experiment.ts" ] && SKILL_ROOT="$dir" && break
+done
+[ -n "${SKILL_ROOT:-}" ] || { echo "Could not find deepline-plays skill root" >&2; exit 1; }
+mkdir -p ./shared
+cp "$SKILL_ROOT/plays/shared/research-experiment.ts" ./shared/research-experiment.ts
+cp "$SKILL_ROOT/plays/shared/research-portfolio.ts" ./shared/research-portfolio.ts
 ```
 
-Run `deepline` commands directly and read their complete output — piping human-formatted output into `head`/`tail`/`grep`/`jq` or backgrounding truncates the errors and run URLs you need; `--json` output is safe to pipe and parse. Use `--json` whenever a downstream step parses output. `plays run` waits for the run and streams completion by default (`--watch` is a compatibility alias); pass `--no-wait` to start and return the run ID, then follow with `deepline runs get <id> --json`. `plays run <name>` runs the live registered version; `plays run <file.play.ts>` runs the local file directly — run by file path while iterating, `set-live` when stable.
+That copy is a **build boundary**, not a convenience. A customer-authored Play
+must import the helpers only through workspace-relative paths:
 
-## Take the customer along: explore, then exploit
+```ts
+import { defineResearchExperiment } from './shared/research-experiment';
+import { planResearchPortfolio } from './shared/research-portfolio';
+```
 
-The session is the product. A run that goes silent until a final CSV feels like a black box even when correct; the same run narrated builds the trust the dataset needs. Treat every job as explore-then-exploit:
+Never import from `.agents/skills`, `.claude/skills`, `$HOME`, or a managed
+skill root. Those paths are authoring-time inputs and are absent in the
+customer's execution environment. The Play and its copied `./shared` kernel
+must be self-contained before `plays check` or any pilot run.
 
-- **Announce the route map before spending.** After discovery, one short message: the routes you'll try in order, expected cost and coverage for each, and what "good" looks like. Expectations set early turn partial coverage into a finding instead of a disappointment.
-- **Show real rows within minutes.** The first pilot rows belong in chat the moment they exist — early rows are the trust down-payment; a polished CSV an hour later is not a substitute.
-- **Explore cheap, exploit the winner — and use your range.** Probe candidate routes on small samples, in parallel inside one play (`shared/authoring.md` § Parallelism). Candidates mean the category, not a famous-name shortlist: `deepline tools list <category>` is complete recall, and sweeping every viable tool over a ~10-row batch costs a few credits while mapping the whole market — one default provider is an opinion. Report each route's marginal fill and cost as it lands, present the ranked options and let the customer pick the accuracy/cost operating point, then adjust the play to carry the winners as legs.
-- **Checkpoint between phases** with a compact scoreboard: coverage, validation verdicts, credits spent, what's next. "12 emails: 6 valid, 6 verify_next" builds trust; a bare "12 emails" spends it.
-- **Deliver increments.** Refresh the working CSV as stages complete; the final message reports deltas since the last checkpoint plus the final scorecard.
-- **Ask when ambiguity is load-bearing.** When a segment label, threshold, ICP boundary, or "which of these two people did you mean" can change the run's outcome, ask the short question instead of guessing — one question is cheaper than a wrong full run, and a verified answer becomes golden truth. Don't ask about things the pilot can answer.
+## Executable artifact boundary
 
-## Cross-cutting rules
+The experiment and portfolio helpers are libraries. A file is not a runnable
+customer Play merely because it exports `runCohort`, `runAdaptiveRow`, or an
+action-card array. The final `.play.ts` must import `definePlay` from
+`deepline` and default-export the actual runtime entrypoint:
 
-The "why" matters more than the rule — knowing the failure mode lets you handle edge cases.
+```ts
+export default definePlay(
+  'customer-adaptive-research',
+  async (ctx, input) => {
+    // Materialize the agent-authored candidate pool, execute the row
+    // controller, and return the promotion artifact and durable output rows.
+  },
+  { description: 'Bounded adaptive research.' },
+);
+```
 
-- **Pilot before scale.** Slice a pilot CSV (`head -2 rows.csv > pilot.csv`) or a 1-2 row `--input` subset first. A misshaped payload at scale burns credits across hundreds of rows before the issue is visible; a pilot exposes the same defect on row 1 for cents. Show real pilot rows and get explicit approval before the full paid run.
-- **Over-provision, then filter.** For N rows, pull ~1.4×N at the top of funnel. Every phase has natural falloff, and companies providers can't find contacts for are the same ones without email coverage — coverage is a property of the company, not something retries overcome. Deliver the best N complete rows; let incomplete rows fall off.
-- **When tools come up empty, return null.** Do not pattern-complete companies or contacts from training data. The output then looks like success but contains unverifiable rows that fail at outreach time. Null (or fewer rows) keeps the line between _found by tools_ and _inferred from memory_ visible.
-- **Preserve provider evidence columns.** Responses include proof fields the user did not ask for: source URL, funding metadata, validation status, confidence, hiring counts, provenance. Verification runs on evidence, so trimming to display columns destroys the ability to trust the dataset. Asked for `name, title, company, email` and got `seniority`, `last_changed_at`, `source` too? Keep all seven.
-- **All I/O through `ctx.*` (replay-safety).** Inside a `*.play.ts`, every non-deterministic operation goes through the runtime: `ctx.tools.execute`, `ctx.runPlay`, `ctx.csv`, `ctx.dataset`, `ctx.fetch`, `ctx.log`, `ctx.sleep`. The body re-executes during replay; `process.env`, `Date.now()`, `fs`, or raw `fetch` see different values on the second execution and corrupt the workflow.
-- **Prebuilts are templates.** Search first. If it fits, run it; if only CSV headers differ, pass `--columns.<field> "<Header>"`. Copy (`deepline plays get <name> --source --out ./my-play.play.ts`) only for semantic changes — the copy preserves the provider order the prebuilt already got right.
-- **One run per file while iterating.** Edit one local play file in place; the durable cache makes reruns cheap when names and keys stay stable. No `-v2`/`-fixed`/`-final` variants.
-- **Outputs go in a project-local working directory.** Files in `/tmp/` are wiped on reboot and users have lost paid enrichment outputs there; credit-costing outputs belong in a directory the user controls. Set up a task-descriptive slug at step zero: `WORKDIR="deepline/data/<slug>" && mkdir -p "$WORKDIR"`. Keep custom `*.play.ts` files in the current workspace (where `node_modules/deepline` is available). After a run, export to the user-requested path with `deepline runs export <run-id> --out <path>` and report the exact path plus the run URL.
-- **CSV inputs are runtime datasets.** `input: { csv: string }` pairs with `--csv leads.csv` and `ctx.csv(input.csv, { columns, required })`. The return value is a `PlayDataset` — pass it to `ctx.dataset`; use `count()`/`peek()` for bounded inspection. Row progress, retries, idempotency, and table output depend on the runtime owning the dataset.
+Keep `runAdaptiveRow` as a typed helper called by this entrypoint. Do not hand
+the customer a library fragment that an agent must later wrap or reinterpret.
+
+`research-portfolio.ts` is a deterministic **budgeted contextual bandit
+controller**. The agent authors action cards, including source family,
+correlation class, exact upper credit bound, prerequisites, claim targets, and
+an optional aggregate historical prior. The controller ranks one admissible
+next action:
+
+```text
+U(a) = exp(-ρ·correlated_attempts(a)) ·
+       Σgap weight(g) · evidence_weight(a) · [μ(a,g) + κ·σ(a,g)]
+       + novelty_bonus(a) - credit_penalty(a) - latency_penalty(a)
+```
+
+`μ` and `σ` are the Beta-posterior mean and uncertainty for verified claim
+yield. The action is re-ranked after every observed result. This gives the
+agent a principled explore/exploit loop without pretending that provider yield
+is stationary across segment, geography, entity type, or claim class.
+
+`research-experiment.ts` remains the evidence and promotion kernel. It binds
+evidence to returned raw text, re-evaluates claim acceptance, rejects adapter
+or policy failures, and decides whether final rows are promotable. The
+portfolio controller never manufactures evidence; the experiment compiler never
+chooses a provider.
+
+## Author action cards, then execute one move at a time
+
+An action card is a visible, falsifiable hypothesis plus its economics. It is
+not a tool name and it is not a natural-language plan. Write cards for
+materially different evidence mechanisms, such as official staff page,
+operating-license registry, current-role validator, active ATS listing,
+structured company database, CRM policy join, or warehouse outcome query.
+
+Use `producesArtifactIds` / `requiresArtifactIds` for a dependency that is
+useful but not customer proof. For example, a capped people lookup can produce
+`operator_lead`; the later current-role validator requires that artifact. A
+lead is still not a verified `operator` claim, so this makes the execution
+dependency explicit without laundering a lead into evidence.
+
+```ts
+const actions = defineResearchActionPortfolio([
+  {
+    id: 'official_operator_v1',
+    hypothesis:
+      'Official staff pages can name a current customer-service operator.',
+    sourceFamily: 'official_web',
+    correlationGroup: 'first_party_site',
+    stage: 'claim_completion',
+    evidenceMode: 'terminal_evidence',
+    producesClaimIds: ['operator'],
+    maximumDeeplineCredits: 0.1,
+  },
+  {
+    id: 'license_operator_v1',
+    hypothesis:
+      'Operating-license records can identify an owner or operator missed by staff pages.',
+    sourceFamily: 'public_registry',
+    correlationGroup: 'public_registry',
+    stage: 'claim_completion',
+    evidenceMode: 'terminal_evidence',
+    producesClaimIds: ['operator'],
+    maximumDeeplineCredits: 0.2,
+  },
+]);
+```
+
+Use a non-secret `contextKey` that captures the task phenotype, for example
+`local_fuel:philly:operator`. Aggregate priors may contain counts only:
+verified claims and attempted claims for the same phenotype. Never pool raw
+customer rows, identities, prompts, evidence, or provider costs across
+workspaces. The current row's run artifact is the authority.
+
+Call `planResearchPortfolio(...)`, then dispatch the selected card through an
+explicit `switch` or named branch. Keep each provider tool ID literal inside
+that branch. A dynamic provider ID or generic callback registry hides the
+actual retrieval graph from the Play checker and later reviewers.
+
+After the branch returns, bind its evidence and evaluate claims through
+`research-experiment.ts`; record the observed strategy telemetry with
+`recordResearchActionObservation(...)`; then plan again. Only a verified claim
+leaves the gap set. `lead_only` results are discovery artifacts, not terminal
+facts. A lead-only card may target the eventual claim in `producesClaimIds` so
+the controller can select it, but its branch must record **zero**
+`verifiedClaimIds`; it must instead declare and emit a concrete
+`producesArtifactIds` value such as `operator_lead`. The next terminal
+validator must declare the matching `requiresArtifactIds` prerequisite.
+
+`budgetDeeplineCredits` is a hard route envelope, not a per-action allowance.
+The controller subtracts observed current-row credits before every next plan.
+If an action's observed cost is unknown, it stops budgeted exploration rather
+than treating the action as free. Set every action-card maximum from the live
+catalog or an observed receipt, and reserve credits for the final proof move.
+
+An adapter failure or policy violation is not a negative source observation.
+Record it with its receipt, stop that row's current attempt, and either restart
+from its durable checkpoint after repair or take the cohort replacement path.
+Do not spend the rest of the row envelope on a contaminated trajectory or feed
+the failure into the source-yield posterior.
+
+For a from-scratch cohort, encode a **replacement transition** in both the
+Play and its decision artifact: when one retained candidate exhausts its
+admissible required-claim actions, retain the exact miss and advance the next
+eligible candidate through the same gates. The cohort stop rule is never
+“three candidates attempted”; it is “N complete rows promoted,” or an explicit
+shortfall after the frozen pool and bounded replacement expansion are exhausted.
+
+The `defineResearchExperiment(...).candidates[].run` callback must invoke this
+actual row controller. Never attach a decorative `run: async () => ({ claims:
+{} })` candidate beside a real controller, and never make final promotion
+evaluate a different path. In a design-only pass, leave **only** catalog-bound
+branch bodies as typed implementation points; the candidate still calls the
+controller, which plans, dispatches, binds, merges, evaluates, and records an
+action result. This prevents the experiment artifact from becoming a passive
+comment block that a later author must reconstruct.
+
+Read `references/adaptive-research.md` for the full skeleton and decision
+artifact shape.
+
+## Exploit heterogeneity rather than thrash
+
+Provider heterogeneity matters when sources fail differently. Model it
+explicitly with `sourceFamily` and `correlationGroup`:
+
+| Claim gap                          | Independent action families                                                          | Terminal condition                                                       |
+| ---------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| Company identity, offer, geography | official site, public registry, maps/directory validation                            | canonical entity and admissible source-bound excerpt                     |
+| Current operator                   | official staff page, registry/officer record, people lead + separate role validation | name, target company, and allowed current role in one admissible context |
+| Active hiring                      | official ATS/careers page, job-index discovery + final job-page fetch                | active state, allowed role, dated posting inside window                  |
+| Account propensity or intent       | public event/news, private CRM, warehouse/product usage                              | source-specific claim policy and stable join key                         |
+| Market language                    | customer calls/support, community discussion, reviews/competitor pages               | exact quote, persona context, and source provenance                      |
+
+Two providers that expose the same index belong in one correlation group. A
+registry and an official site normally do not. After a miss, the controller
+discounts the same group and makes an untried independent group competitive.
+That is persistence with information gain, not retrying a query with cosmetic
+filter changes.
+
+Use a broad, cheap discovery fanout when no rows exist. Preserve discovered
+URLs, raw excerpts, canonical keys, selected/excluded reasons, and every near
+miss. Freeze a common candidate pool before costly row-level work. Then use
+the controller to screen more than the requested count through required
+admission claims. For example, if a named operator is required, only companies
+with both ICP and operator proof may enter an expensive hiring stage.
+
+## Budget, evidence, and stopping gates
+
+**Bound every action before execution.** Set `maximumDeeplineCredits` from a
+live tool description or a measured receipt. The controller rejects unknown or
+over-budget actions rather than treating them as free. Keep a reserve for final
+verification or selected-run work. A people provider is gap-only: request the
+smallest candidate set that can alter the next decision, then independently
+validate the result. A broad ten-result people search is a high-cost lead
+generator, not better evidence.
+
+**Keep action economics separate from truth.** An action that returns a URL,
+person, or model extraction has only produced a lead until the exact final URL,
+raw excerpt, identity, freshness, and task-specific acceptance function pass.
+One authoritative source can be enough only when the claim policy says why.
+An unrelated `President` title does not satisfy a request for owner,
+operations, customer-service, or CX.
+
+**Stop on measured terminal states.** Continue until every required claim is
+verified, a candidate replacement is available, or the controller has no
+positive-utility admissible action. Stop when budget, prerequisites, or source
+space are exhausted. Report that stopping reason and the retained misses;
+never turn lack of evidence into a negative assertion or a partial cohort into
+a promoted winner.
+
+**Keep row work row-scoped.** Run actions inside a dataset
+`.withColumn(async (row, rowCtx) => ...)`, pass `rowCtx` into every helper, and
+use literal checkpoint IDs. Revised query, adapter, source policy, or claim
+semantics require a visible policy revision and new checkpoint IDs. Debug only
+with `deepline runs get`, `deepline runs logs`, and `deepline runs export`;
+never query workspace storage directly.
+
+## Minimal execution loop
+
+1. Inspect inputs and write the final row contract.
+2. Search and describe only the source categories needed for the first action
+   frontier. Record cost ceilings and evidence fields.
+3. Author `defineResearchExperiment(...)` claim contracts and a diversified
+   portfolio of literal action branches in one Play.
+4. `deepline plays check ./<task>.play.ts`, then run one or a few representative
+   rows. An adapter failure is a repair event, not a low-yield source result.
+5. After each action, bind evidence, record the outcome, re-plan, and move to
+   the next action only if it has positive marginal utility.
+6. Compile and promote final evaluations with a floor matching the requested
+   count. Project customer rows only from the completed promoted datasets.
+
+Use separate visible commands for validation and billing:
+
+```bash
+deepline billing balance --json
+deepline plays check ./<task>.play.ts
+deepline plays run ./<task>.play.ts --input @input.json --watch
+deepline runs get <run-id> --full --json
+deepline runs export <run-id> --dataset <final-dataset-path> --out <output>.csv
+deepline billing balance --json
+```
+
+## Delivery
+
+Return the verified rows, evidence URLs/excerpts, unresolved fields, candidate
+selection audit, action decision artifacts, promotion result, run ID, and the
+opening-minus-closing Deepline credit delta. Explain what to scale only after a
+route is measured. Do not expose provider spend.
+
+## Read only when needed
+
+| Need                                                             | Read                                          |
+| ---------------------------------------------------------------- | --------------------------------------------- |
+| The adaptive algorithm, card schema, or full executable skeleton | `references/adaptive-research.md`             |
+| Company discovery from scratch, operator proof, or hiring proof  | `references/company-research-from-scratch.md` |
+| Concrete observed agent failures and regression scars            | `references/pattern-library.md`               |
+| Replay, input mapping, row contexts, and SDK authoring           | `shared/authoring.md`                         |
+| Evidence, golden data, and adaptive claim correctness            | `shared/correctness.md`                       |
+| Receipts, row isolation, resume, and run inspection              | `shared/durability.md`                        |
+| Candidate discovery or contacts                                  | `jobs/finding.md`                             |
+| Known-row enrichment                                             | `jobs/enriching.md`                           |
+| A checked Play has a syntax, replay, or getter error             | `references/debugging.md`                     |
