@@ -42,10 +42,15 @@ EVE_MODEL=anthropic/claude-sonnet-4.6
 Vercel Connect registers the Slack app for you. You do not create a Slack app,
 manage a manifest, or copy a bot token.
 
+The connector name sets its UID, and `agent/channels/slack.ts` hard-codes that
+UID. Use `--name deepline-gtm-eve-agent` to get `slack/deepline-gtm-eve-agent`,
+or pick your own name and update the channel file to match.
+
 ```bash
-npx vercel connect create slack --triggers
-npx vercel connect detach <uid> --yes
-npx vercel connect attach <uid> --triggers --trigger-path /eve/v1/slack --yes
+npx vercel connect create slack --name deepline-gtm-eve-agent --triggers --yes
+npx vercel connect detach slack/deepline-gtm-eve-agent --yes
+npx vercel connect attach slack/deepline-gtm-eve-agent \
+  --triggers --trigger-path /eve/v1/slack --yes
 ```
 
 `create` provisions the connector at Connect's default path. `detach` then
@@ -62,7 +67,7 @@ import { connectSlackCredentials } from "@vercel/connect/eve";
 import { slackChannel } from "eve/channels/slack";
 
 export default slackChannel({
-  credentials: connectSlackCredentials("slack/<uid>"),
+  credentials: connectSlackCredentials("slack/deepline-gtm-eve-agent"),
 });
 ```
 
