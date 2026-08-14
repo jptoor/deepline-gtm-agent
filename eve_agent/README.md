@@ -2,7 +2,7 @@
 
 Eve reference implementation for the Deepline GTM agent. This app keeps Deepline as the GTM execution backend and uses Eve for durable agent sessions, local development, evals, and Vercel deployment.
 
-The existing Python/FastAPI broker remains the default runtime in the repository. Use this package when you want the faster Eve deployment path or want to validate Deepline GTM behavior through Eve evals.
+This package is the runtime. The Python/FastAPI broker that used to serve Slack and REST is deleted.
 
 ## Requirements
 
@@ -140,4 +140,4 @@ The Eve port preserves the important Deepline GTM behavior:
 - workflow presets for enrichment, account digests, support, web research, bounded tool action, closed-loop GTM, and Snowflake query agents
 - deterministic eval coverage for smoke behavior, workflow presets, enrichment guidance, account research, and approval rules
 
-Slack remains on the Python broker for now. The Eve package is structured so an Eve Slack channel can be added later without blocking the faster Vercel deployment path.
+Slack runs through `agent/channels/slack.ts`, with credentials supplied by Vercel Connect. The Python broker that previously served Slack is deleted.

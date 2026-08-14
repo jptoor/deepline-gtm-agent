@@ -10,12 +10,12 @@ description: 'Convert a Clay table configuration into local Deepline scripts. Ha
 | Signal in Clay table                                                    | Target                                                                                                  | Why                                                 |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
 | Batch rows, no triggers, one-time or manual re-runs                     | **Enrich migration** (this recipe)                                                                      | `deepline enrich` scripts, run locally              |
-| Webhook trigger, row routing (`route-row`), CRM writes, campaign pushes | **Cloud workflow migration** → see [cloud-workflow-builder.md](../references/cloud-workflow-builder.md) | `deepline workflows apply`, deployed + event-driven |
-| Hybrid: batch enrichment + downstream push to CRM/campaign              | **Enrich migration first**, then a **cloud workflow** for the push                                      | Split at the enrichment boundary                    |
+| Webhook trigger, row routing (`route-row`), CRM writes, campaign pushes | **Custom play migration** → see [deepline-plays.md](deepline-plays.md) | Compose tools/plays with explicit orchestration |
+| Hybrid: batch enrichment + downstream push to CRM/campaign              | **Enrich migration first**, then a **custom play** for the push                         | Split at the enrichment boundary          |
 
 Most Clay tables are enrich migrations. This recipe covers that path end-to-end.
 
-For cloud workflow migrations, **Extraction and Documentation still apply** — then follow [cloud-workflow-builder.md](../references/cloud-workflow-builder.md) with the extracted config as the source artifact.
+For custom play migrations, **Extraction and Documentation still apply** — then follow [deepline-plays.md](deepline-plays.md) with the extracted config as the source artifact.
 
 ---
 
@@ -116,7 +116,7 @@ Answer these **before writing scripts** based on what Phase 1 revealed. Only ans
 **Table type (check all that apply):**
 
 - [ ] Has person enrichment columns → verify with `deepline tools search "person enrichment linkedin"`
-- [ ] Has email finding columns → use `name_and_domain_to_email_waterfall` as primary play
+- [ ] Has email finding columns → use `name-and-domain-to-email-waterfall` as primary play
 - [ ] Has AI generation columns (use-ai, claygent, octave) → recover prompts verbatim (§2.5)
 - [ ] Has scoring/qualification columns → use ICP criteria verbatim from Clay config
 - [ ] Has campaign push / CRM update columns → verify with `deepline tools search "<platform> add leads"`
@@ -231,8 +231,8 @@ Filter to rows still missing a value before running expensive fallback stages.
 
 ```
 1. filter_missing → MISSING_CSV
-2. deepline enrich --in-place (adds schema cols to work.csv)
-3. deepline enrich MISSING_CSV → MISSING_WORK (adds same cols fresh)
+2. deepline enrich --name <task-slug> --in-place (adds schema cols to work.csv)
+3. deepline enrich --name <task-slug> MISSING_CSV -> MISSING_WORK (adds same cols fresh)
 4. execute on MISSING_WORK
 5. merge_back MISSING_WORK → work.csv
 ```
@@ -254,7 +254,7 @@ code = "const fn=(row.first_name||'').toLowerCase()..."
 print('col_name=run_javascript:' + json.dumps({'code': code}))
 PYEOF
 )
-deepline enrich --input seed.csv --output work.csv --with "$WITH_ARG"
+deepline enrich --input seed.csv --output work.csv --name clay-js-transform --with "$WITH_ARG"
 ```
 
 Never hand-build JSON with embedded JS in bash strings.
@@ -295,7 +295,7 @@ deepline tools describe <candidate_tool_id>       # inspect candidate
 
 | Clay action                                   | Deepline tool                                                                    |
 | --------------------------------------------- | -------------------------------------------------------------------------------- |
-| Email waterfall + `validate-email`            | `name_and_domain_to_email_waterfall` + `perm_fln` + `leadmagic_email_validation` |
+| Email waterfall + `validate-email`            | `name-and-domain-to-email-waterfall` + `perm_fln` + `leadmagic_email_validation` |
 | `enrich-person-with-mixrank-v2`               | `leadmagic_profile_search` → `crustdata_person_enrichment`                       |
 | `chat-gpt-schema-mapper`                      | `deeplineagent` with `jsonSchema`                                                |
 | `use-ai` (no web)                             | `deeplineagent`                                                                  |
@@ -385,7 +385,7 @@ Clay-specific patterns. For general Deepline patterns (email plays, interpolatio
 | `fn@domain`             | 3%               |
 | Provider waterfall only | ~12%             |
 
-Use `name_and_domain_to_email_waterfall` as primary play. Accept `valid`, `valid_catch_all`, AND `catch_all` from validation (NOT `unknown`).
+Use `name-and-domain-to-email-waterfall` as primary play. Accept `valid`, `valid_catch_all`, AND `catch_all` from validation (NOT `unknown`).
 
 ### Cookie Security
 
@@ -405,7 +405,7 @@ Always use `clay_curl` wrapper. Get `VIEW_ID` from `.table.firstViewId`. Parse w
 
 ### Parity Thresholds
 
-Base thresholds (shared with [cloud-workflow-migrations.md](../references/cloud-workflow-migrations.md#parity-thresholds)):
+Base thresholds:
 
 | Field type                               | Threshold                             |
 | ---------------------------------------- | ------------------------------------- |
@@ -437,7 +437,7 @@ python3 /path/to/skill/scripts/compare.py ground_truth.csv enriched.csv \
 
 ### Diagnosing LLM Mismatches
 
-Follow the process from [cloud-workflow-migrations.md](../references/cloud-workflow-migrations.md#diagnosing-llm-parity-mismatches): check prompt parity → check model parity → check true ambiguity (run 3x) → document, don't overfit.
+Use this mismatch process: check prompt parity → check model parity → check true ambiguity (run 3x) → document, don't overfit.
 
 ---
 
@@ -465,7 +465,7 @@ Follow the process from [cloud-workflow-migrations.md](../references/cloud-workf
 5. **Pilot gate**: `--rows 0:0` (structural), then `--rows 0:3` (real APIs)
 6. **Full run**: After pilot approval
 7. **Phase 3 (§7)**: `compare.py ground_truth.csv enriched.csv` — confirm thresholds pass
-8. **Cloud workflow migration** (optional): If table needs triggers/routing → [cloud-workflow-builder.md](../references/cloud-workflow-builder.md)
+8. **Custom play migration** (optional): If table needs triggers/routing → [deepline-plays.md](deepline-plays.md)
 
 ### Pilot Gate
 

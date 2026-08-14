@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: eve_agent
+
+jobs:
+  check:
+    name: typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: eve_agent/package-lock.json
+
+      # `npm ci` installs exactly the lockfile. The floating `latest` ranges
+      # that used to sit in package.json resolved `eve` to a version whose peer
+      # range excluded `@vercel/connect`, which broke the Vercel build. Keeping
+      # CI on the lockfile is what catches that class of drift again.
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      - run: npx eve build
+
+  skills-drift:
+    name: skills snapshot drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Advisory, not a gate. The check fetches the live skills index from
+    # code.deepline.com, so a red result can mean the snapshot is stale OR that
+    # production moved OR that the network hiccuped. None of those should block
+    # a merge, but the drift is still worth seeing in the PR.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: eve_agent/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run check:skills

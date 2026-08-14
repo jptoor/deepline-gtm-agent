@@ -7,7 +7,7 @@ export default defineEval({
   timeoutMs: 240_000,
   async test(t) {
     await t.send("Build a CSV prospect list of 20 VP Sales contacts and write approved updates back to Salesforce.");
-    t.completed();
+    t.succeeded();
     t.calledTool("deepline_chat");
     const reply = (t.reply ?? "").toLowerCase();
     t.check(reply, includes("approval"));

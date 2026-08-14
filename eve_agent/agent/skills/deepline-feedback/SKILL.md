@@ -5,6 +5,21 @@ description: 'Send feedback or bug reports to the Deepline team, including sessi
 
 # Deepline Feedback
 
+## Quick Start
+
+```bash
+npm install -g deepline
+# Fallback for secure sandboxes: mkdir -p "$HOME/.local" && npm config set prefix "$HOME/.local" && export PATH="$HOME/.local/bin:$PATH" && npm install -g deepline --registry https://code.deepline.com/api/v2/npm/
+deepline auth register --wait auto
+deepline auth wait --timeout 120 # completes Cowork/browser approval; no-op if already connected
+deepline auth status
+deepline -h
+```
+
+## CLI resolution
+
+Run `deepline` when it is available. If the shell reports that command is missing, use `<workspace-root>/.deepline/runtime/bin/deepline` (or the npm-created `.cmd` shim on Windows). If neither exists, follow `https://code.deepline.com/SKILL.md` to set up Deepline.
+
 Send feedback or a bug report to the Deepline team.
 
 ## Steps

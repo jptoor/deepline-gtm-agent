@@ -6,7 +6,7 @@ export default defineEval({
   tags: ["smoke"],
   async test(t) {
     await t.send("Say ok in one word.");
-    t.completed();
+    t.succeeded();
     t.check((t.reply ?? "").toLowerCase(), includes("ok"));
   },
 });

@@ -11,6 +11,9 @@ test("workflow presets expose the same core preset ids as Python broker", () => 
     "account_digest",
     "self_serve_support_agent",
     "web_context_research",
+    "account_brief",
+    "signal_stacking",
+    "org_chart_building",
     "bounded_tool_action",
     "closed_loop_gtm_workflow",
     "snowflake_query_agent",
@@ -25,6 +28,20 @@ test("web_context_research includes tool bounds and output shape", () => {
   assert.deepEqual(preset?.suggested_tool_bounds.enabledToolIds, ["deeplineagent", "firecrawl_search", "exa_search"]);
   assert.equal(preset?.suggested_tool_bounds.maxToolCalls, 6);
   assert.ok(preset?.expected_output.includes("source-backed claims"));
+});
+
+test("Prove workflow presets cover briefs, signal stacking, and org charts", () => {
+  const accountBrief = getWorkflowPreset("account_brief");
+  assert.equal(accountBrief?.title, "Rep-ready account brief");
+  assert.ok(accountBrief?.expected_output.includes("first-message angle"));
+
+  const signalStacking = getWorkflowPreset("signal_stacking");
+  assert.equal(signalStacking?.suggested_tool_bounds.read_only, true);
+  assert.ok(signalStacking?.expected_output.includes("anti-fit signals"));
+
+  const orgChart = getWorkflowPreset("org_chart_building");
+  assert.ok(orgChart?.best_for.includes("buying committee discovery"));
+  assert.ok(orgChart?.human_approval_required_for.includes("Notion write"));
 });
 
 test("unknown workflow preset returns null", () => {

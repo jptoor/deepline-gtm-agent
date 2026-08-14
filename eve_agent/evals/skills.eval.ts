@@ -7,7 +7,7 @@ export default defineEval({
   timeoutMs: 240_000,
   async test(t) {
     await t.send("I want to update Salesforce contacts after enriching a prospect list. What should happen before writeback?");
-    t.completed();
+    t.succeeded();
     t.calledTool("load_skill");
     const reply = (t.reply ?? "").toLowerCase();
     t.check(reply, includes("approval"));

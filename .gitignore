@@ -41,7 +41,6 @@ secrets.json
 
 # Local eval/debug output — may contain real contact data
 tmp/
-managed_agent/.agent_config.json
 
 # Eve / Node local artifacts
 eve_agent/node_modules/
@@ -51,3 +50,6 @@ eve_agent/.workflow-data/
 eve_agent/.output/
 eve_agent/dist/
 eve_agent/*.tsbuildinfo
+
+# Isolated feature worktrees
+.worktrees/

@@ -101,6 +101,82 @@ I'm going into a call with Intercom tomorrow. Pull together:
 
 ---
 
+## Workflow 4.5 — Prove-Style Account Brief
+
+Trigger: rep needs a concise point of view before a call or outbound touch.
+
+```
+Create a rep-ready account brief for Prove.
+
+Buyer context:
+- Team: GTM / RevOps
+- Motion: outbound workflow automation
+
+Return:
+- company snapshot
+- GTM motion
+- current signals
+- suspected pain
+- Deepline angle
+- first-message angle
+- open questions
+- sources and proof status
+
+Keep it concise. Do not write to CRM or send outreach.
+```
+
+```
+Create an account brief for a rep working ZeroClick.
+Focus on why agent-purchasable APIs, x402, and new growth channels might matter.
+Include only sourced claims, clear caveats, and one suggested reply angle.
+```
+
+---
+
+## Workflow 4.6 — Signal Stacking
+
+Trigger: rank accounts using multiple weak signals instead of one noisy trigger.
+
+```
+Score these accounts using signal stacking:
+- Prove
+- Persona
+- Middesk
+- Alloy
+
+Separate:
+- core fit
+- buying intent
+- infrastructure readiness
+- anti-fit signals
+- missing evidence
+
+Return a 0-100 score, source-backed evidence, and the next safe workflow.
+Do not enrich contacts or write to CRM without approval.
+```
+
+---
+
+## Workflow 4.7 — Org Chart / Buying Committee
+
+Trigger: enterprise rep needs a stakeholder map and multi-threading plan.
+
+```
+Build an org chart and buying committee map for Stripe.
+
+Focus on:
+- Sales
+- RevOps
+- Partnerships
+- Security
+
+Run a small discovery pass first. Mark inferred reporting lines clearly.
+Include Deepline run IDs and source evidence. Do not run work-email enrichment
+or write to Notion/CRM unless I approve it.
+```
+
+---
+
 ## Workflow 5 — Competitive Signal Monitoring
 
 ```
@@ -258,4 +334,5 @@ and give me two sentences of context about their background I can reference.
 - **For recently hired contacts** — ask explicitly: "hired in the last 60 days" or "started a new role in the last 3 months." The agent routes these to Icypeas which supports job start-date filtering.
 - **Use location naturally** — "New York City", "NYC", "San Francisco", "London" all work. City-level searches route to Icypeas; country-level to Dropleads.
 - **Start company research before contact search** — running `search_companies` first gives you domains, which makes `search_prospects` more precise.
+- **For rep-facing workflows** — ask for the workflow by name: `account brief`, `signal stacking`, or `org chart`. These map to discoverable presets in the broker and Eve reference implementation.
 - **For CRM and outreach** — just ask naturally. "Show me my Lemlist campaigns", "create a HubSpot contact", "pull Attio contacts" all route to the right integrations automatically.
