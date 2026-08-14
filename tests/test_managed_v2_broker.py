@@ -292,10 +292,30 @@ def test_workflow_presets_are_discoverable(monkeypatch):
         "account_digest",
         "self_serve_support_agent",
         "web_context_research",
+        "account_brief",
+        "signal_stacking",
+        "org_chart_building",
         "bounded_tool_action",
         "closed_loop_gtm_workflow",
         "snowflake_query_agent",
     }.issubset(preset_ids)
+
+
+def test_prove_workflow_presets_cover_rep_workflows(monkeypatch):
+    monkeypatch.delenv("DEEPLINE_API_KEY", raising=False)
+
+    from managed_agent.server import app
+
+    account_brief = TestClient(app).get("/workflow-presets/account_brief").json()
+    signal_stacking = TestClient(app).get("/workflow-presets/signal_stacking").json()
+    org_chart = TestClient(app).get("/workflow-presets/org_chart_building").json()
+
+    assert account_brief["title"] == "Rep-ready account brief"
+    assert "first-message angle" in account_brief["expected_output"]
+    assert signal_stacking["suggested_tool_bounds"]["read_only"] is True
+    assert "anti-fit signals" in signal_stacking["expected_output"]
+    assert "buying committee discovery" in org_chart["best_for"]
+    assert "Notion write" in org_chart["human_approval_required_for"]
 
 
 def test_workflow_preset_includes_prompt_tool_bounds_and_output_shape(monkeypatch):
@@ -584,20 +604,203 @@ def test_slack_event_allows_configured_channel(monkeypatch):
     assert server._slack_event_allowed({"channel": "C999", "user": "U999"}) is False
 
 
+def test_slack_event_allows_explicit_channel_wildcard(monkeypatch):
+    import managed_agent.server as server
+
+    monkeypatch.setenv("SLACK_ALLOWED_CHANNEL_IDS", "*")
+    monkeypatch.delenv("SLACK_ALLOWED_USER_IDS", raising=False)
+
+    assert server._slack_event_allowed({"channel": "C123", "user": "U999"}) is True
+    assert server._slack_event_allowed({"channel": "D123", "user": "U999"}) is True
+
+
+def test_slack_event_allows_explicit_user_wildcard(monkeypatch):
+    import managed_agent.server as server
+
+    monkeypatch.delenv("SLACK_ALLOWED_CHANNEL_IDS", raising=False)
+    monkeypatch.setenv("SLACK_ALLOWED_USER_IDS", "*")
+
+    assert server._slack_event_allowed({"channel": "C123", "user": "U999"}) is True
+
+
 def test_slack_agent_payload_is_read_only_and_bounded():
     import managed_agent.server as server
 
     payload = server._slack_agent_payload("Research stripe.com and add it to HubSpot")
 
-    assert payload["enabledToolIds"] == [
+    assert payload["enabledToolIds"][:4] == [
         "deeplineagent",
         "serper_google_search",
         "exa_search",
         "firecrawl_scrape",
     ]
+    assert "hubspot_create_contact" not in payload["enabledToolIds"]
+    assert "salesforce_create_lead" not in payload["enabledToolIds"]
     assert payload["maxToolCalls"] == 4
     assert "Do not send outreach" in payload["prompt"]
     assert "ask for approval" in payload["prompt"]
+
+
+def test_slack_mobile_lookup_routes_to_deepline_contact_enrichment():
+    import managed_agent.server as server
+
+    payload = server._slack_agent_payload(
+        (
+            "use /deepline-gtm to get Luke Szendiuch's mobile please. "
+            "He replied from ZeroClick and included linkedin.com/in/luke-szendiuch-62823084"
+        )
+    )
+
+    assert "business mobile" in payload["prompt"]
+    assert "licensed Deepline providers" in payload["prompt"]
+    assert "do not refuse" in payload["prompt"].lower()
+    assert "private individual" not in payload["prompt"].lower()
+    assert "leadmagic_mobile_finder" in payload["enabledToolIds"]
+    assert "dropleads_mobile_finder" in payload["enabledToolIds"]
+    assert "ai_ark_mobile_phone_finder" in payload["enabledToolIds"]
+    assert "ai_ark_mobile_finder" not in payload["enabledToolIds"]
+    assert "forager_person_detail_lookup" in payload["enabledToolIds"]
+
+
+def test_slack_mobile_lookup_payloads_use_live_deepline_contract():
+    import managed_agent.server as server
+
+    linkedin = "https://www.linkedin.com/in/luke-szendiuch-62823084"
+
+    assert server._mobile_tool_payload("forager_person_detail_lookup", linkedin) == {
+        "linkedin_public_identifier": "luke-szendiuch-62823084",
+    }
+    assert server._mobile_tool_payload("leadmagic_mobile_finder", linkedin) == {"profile_url": linkedin}
+    assert server._mobile_tool_payload("dropleads_mobile_finder", linkedin) == {"linkedin_url": linkedin}
+    assert server._mobile_tool_payload("ai_ark_mobile_phone_finder", linkedin) == {"linkedin": linkedin}
+    assert (
+        server._linkedin_profile_url(
+            "<https://www.linkedin.com/in/luke-szendiuch-62823084|linkedin.com/in/luke-szendiuch-62823084>"
+        )
+        == linkedin
+    )
+
+
+def test_slack_mobile_lookup_extracts_nested_phone_candidate():
+    import managed_agent.server as server
+
+    result = {
+        "toolResponse": {
+            "raw": {
+                "person": {
+                    "phones": [{"type": "mobile", "number": "+1 555 010 9999"}],
+                }
+            }
+        }
+    }
+
+    assert server._first_mobile_candidate(result) == "+1 555 010 9999"
+
+
+def test_slack_mobile_lookup_falls_back_until_verified_result(monkeypatch):
+    import asyncio
+    import managed_agent.server as server
+
+    class FakeMobileClient:
+        def __init__(self):
+            self.calls = []
+
+        async def execute_tool(self, tool_id, payload):
+            self.calls.append((tool_id, payload))
+            if tool_id == "forager_person_detail_lookup":
+                return {"toolResponse": {"raw": {"person": {"phones": []}}}}
+            if tool_id == "leadmagic_mobile_finder":
+                return {"toolResponse": {"raw": {"mobile_number": "+1 555 010 9999"}}}
+            raise AssertionError(f"unexpected provider: {tool_id}")
+
+    fake = FakeMobileClient()
+    monkeypatch.setattr(server, "get_deepline_client", lambda: fake)
+
+    linkedin, attempts, mobile = asyncio.run(
+        server._execute_mobile_lookup(
+            "get this person's business mobile: https://www.linkedin.com/in/luke-szendiuch-62823084"
+        )
+    )
+
+    assert linkedin == "https://www.linkedin.com/in/luke-szendiuch-62823084"
+    assert fake.calls == [
+        (
+            "forager_person_detail_lookup",
+            {"linkedin_public_identifier": "luke-szendiuch-62823084"},
+        ),
+        ("leadmagic_mobile_finder", {"profile_url": linkedin}),
+    ]
+    assert attempts == [
+        {"provider": "forager_person_detail_lookup", "status": "no verified business mobile returned"},
+        {"provider": "leadmagic_mobile_finder", "status": "verified business mobile found"},
+    ]
+    assert mobile == "+1 555 010 9999"
+
+
+def test_slack_handler_executes_mobile_lookup_without_native_chat(monkeypatch):
+    import asyncio
+    import managed_agent.server as server
+
+    class FakeMobileClient:
+        def __init__(self):
+            self.execute_calls = []
+            self.stream_payloads = []
+
+        async def execute_tool(self, tool_id, payload):
+            self.execute_calls.append((tool_id, payload))
+            return {"toolResponse": {"raw": {"mobile_number": "+1 555 010 9999"}}}
+
+        async def stream_agent(self, payload):
+            self.stream_payloads.append(payload)
+            raise AssertionError("Slack mobile lookup should execute providers directly")
+            yield ""
+
+    fake = FakeMobileClient()
+    reactions = []
+    posts = []
+
+    async def fake_react(channel, ts, emoji, token, remove=False):
+        reactions.append((channel, ts, emoji, token, remove))
+        return True
+
+    async def fake_post(channel, text, token, thread_ts=None):
+        posts.append((channel, text, token, thread_ts))
+
+    monkeypatch.setattr(server, "SLACK_BOT_TOKEN", "xoxb-test")
+    monkeypatch.setattr(server, "get_deepline_client", lambda: fake)
+    monkeypatch.setattr(server, "_slack_react", fake_react)
+    monkeypatch.setattr(server, "_slack_post", fake_post)
+
+    asyncio.run(
+        server._handle_slack_event(
+            {
+                "channel": "C123",
+                "user": "U123",
+                "ts": "1784913061.798369",
+                "text": (
+                    "<@U0ANWHB4F71> get Luke's verified business mobile. "
+                    "LinkedIn: <https://www.linkedin.com/in/luke-szendiuch-62823084|linkedin.com/in/luke-szendiuch-62823084>"
+                ),
+            },
+            "T123",
+        )
+    )
+
+    assert fake.stream_payloads == []
+    assert fake.execute_calls == [
+        (
+            "forager_person_detail_lookup",
+            {"linkedin_public_identifier": "luke-szendiuch-62823084"},
+        )
+    ]
+    assert reactions[0] == ("C123", "1784913061.798369", "eyes", "xoxb-test", False)
+    assert reactions[-1] == ("C123", "1784913061.798369", "eyes", "xoxb-test", True)
+    assert len(posts) == 1
+    assert posts[0][0] == "C123"
+    assert posts[0][2] == "xoxb-test"
+    assert posts[0][3] == "1784913061.798369"
+    assert "forager_person_detail_lookup: verified business mobile found" in posts[0][1]
+    assert "Business mobile: +1 555 010 9999" in posts[0][1]
 
 
 def test_slack_oauth_requires_state_and_does_not_render_token(monkeypatch):

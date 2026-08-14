@@ -7,7 +7,7 @@ export default defineEval({
   timeoutMs: 240_000,
   async test(t) {
     await t.send("Use the Deepline GTM workflow for LinkedIn URL lookup. What guidance should you load before running it?");
-    t.completed();
+    t.succeeded();
     t.calledTool("load_skill");
     const reply = (t.reply ?? "").toLowerCase();
     t.check(reply, includes("deepline"));

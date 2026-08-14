@@ -3,6 +3,7 @@
 This guide deploys the Deepline v2 native agent/chat broker. It uses environment variables and the Deepline SDK/API, with no dependency on local Deepline CLI state.
 
 For the additive Eve reference implementation, use the "Eve on Vercel" section below. The Python broker remains the Railway/Slack path.
+For Azure-native hosting, use [docs/azure-container-apps.md](docs/azure-container-apps.md).
 
 ## Eve on Vercel
 

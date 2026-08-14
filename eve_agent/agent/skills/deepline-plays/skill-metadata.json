@@ -1,41 +1,37 @@
 {
-  "title": "Getting Started With Deepline Plays",
+  "title": "Deepline Plays",
   "documents": {
     "SKILL.md": {
       "kind": "entrypoint",
-      "title": "Getting Started With Deepline Plays",
+      "title": "Deepline Plays",
       "tags": ["sdk", "gtm", "plays", "v2"],
       "providers": []
-    },
-    "references/find-companies-contacts-tam.md": {
-      "kind": "reference",
-      "title": "Find Companies, Contacts, And TAM",
-      "tags": ["gtm", "tam", "contacts", "providers"],
+    }
+  },
+  "prefixes": {
+    "jobs/": {
+      "kind": "guide",
+      "title": "Job Guide",
+      "tags": ["gtm", "workflow"],
       "providers": []
     },
-    "references/run-export-inspect-repair.md": {
+    "references/": {
       "kind": "reference",
-      "title": "Run, Export, Inspect, Repair",
-      "tags": ["runs", "exports", "billing", "debugging"],
+      "title": "Reference",
+      "tags": ["cli", "debugging"],
       "providers": []
     },
-    "references/sdk-reference.md": {
-      "kind": "reference",
-      "title": "SDK Reference",
-      "tags": ["sdk", "generated"],
-      "providers": []
-    },
-    "references/api-reference.md": {
-      "kind": "reference",
-      "title": "Runtime API Reference",
-      "tags": ["api", "generated"],
+    "shared/": {
+      "kind": "guide",
+      "title": "Shared Guide",
+      "tags": ["sdk", "plays"],
       "providers": []
     }
   },
   "default_document": {
-    "kind": "reference",
-    "title": "Deepline Plays Document",
-    "tags": ["sdk"],
+    "kind": "other",
+    "title": "Document",
+    "tags": [],
     "providers": []
   }
 }

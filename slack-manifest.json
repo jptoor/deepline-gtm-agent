@@ -26,6 +26,7 @@
         "chat:write",
         "chat:write.public",
         "groups:history",
+        "groups:read",
         "im:history",
         "im:read",
         "mpim:history",
@@ -42,7 +43,8 @@
       ]
     },
     "interactivity": {
-      "is_enabled": false
+      "is_enabled": true,
+      "request_url": "https://YOUR_RAILWAY_DOMAIN/reply-copilot/slack/interactions"
     },
     "org_deploy_enabled": false,
     "socket_mode_enabled": false,

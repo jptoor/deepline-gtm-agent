@@ -83,6 +83,10 @@ with a read-only prompt, bounded tool list, and capped tool-call count. If you u
 the OAuth redirect flow, set `SLACK_OAUTH_STATE`; the redirect page never renders
 the bot token.
 
+Explicit Slack business-mobile requests with a LinkedIn profile URL execute a
+bounded Deepline provider waterfall directly. The broker reports providers
+checked and only returns a mobile number when a licensed provider returns one.
+
 Set `CORS_ORIGINS` to the exact browser origins that should call the broker. The
 default is empty, which avoids accidentally exposing authenticated chat endpoints
 to every origin.

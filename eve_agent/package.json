@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "ai": "latest",
-    "eve": "latest",
+    "eve": "^0.27.0",
     "zod": "latest"
   },
   "devDependencies": {

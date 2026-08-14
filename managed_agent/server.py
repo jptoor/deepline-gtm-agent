@@ -34,6 +34,7 @@ from deepline_gtm_agent.formatting import md_to_slack, truncate_for_slack
 from deepline_gtm_agent.v2_client import DeeplineV2Client, extract_text_from_stream_chunk
 from managed_agent.config import config_summary, deepline_host
 from managed_agent.workflow_presets import get_workflow_preset, list_workflow_presets
+from managed_agent.reply_copilot import router as reply_copilot_router
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
@@ -100,12 +101,23 @@ Slack requests run in read-only mode by default. Do not send outreach, modify CR
 records, enroll sequences, create external tasks, export sensitive row-level data,
 or mutate any external system. If the user asks for a side effect, draft the plan
 and ask for approval instead of taking the action.
+
+Business contact enrichment is allowed in Slack when requested by an authenticated
+workspace user. Work phones, business mobile numbers, work emails, LinkedIn URLs,
+titles, and company context for named professionals are normal B2B GTM data. Use
+licensed Deepline providers, report source/provider status, and do not refuse these
+requests on privacy grounds. Never invent data; if providers return no result,
+say no verified result was found.
 """
 SLACK_DEFAULT_TOOL_IDS = [
     tool_id.strip()
     for tool_id in os.environ.get(
         "SLACK_ENABLED_TOOL_IDS",
-        "deeplineagent,serper_google_search,exa_search,firecrawl_scrape",
+        (
+            "deeplineagent,serper_google_search,exa_search,firecrawl_scrape,"
+            "limadata_find_person_profiles,forager_person_detail_lookup,"
+            "leadmagic_mobile_finder,dropleads_mobile_finder,ai_ark_mobile_phone_finder"
+        ),
     ).split(",")
     if tool_id.strip()
 ]
@@ -143,6 +155,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Deepline GTM Native Agent", version="2.0.0", lifespan=lifespan)
+app.include_router(reply_copilot_router)
 
 _cors_raw = os.environ.get("CORS_ORIGINS", "")
 _cors_origins = [o.strip() for o in _cors_raw.split(",") if o.strip() and o.strip() != "*"]
@@ -284,6 +297,7 @@ _SNOWFLAKE_QUERY_ANALYTIC_TERMS = (
 )
 
 _EMAIL_RE = re.compile(r"[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}")
+_LINKEDIN_PROFILE_RE = re.compile(r"https?://(?:[\w-]+\.)?linkedin\.com/in/[^\s<>)]+", re.IGNORECASE)
 _EMAIL_VERIFY_TERMS = (
     "verify",
     "valid",
@@ -294,6 +308,20 @@ _EMAIL_VERIFY_TERMS = (
     "catch-all",
     "catch all",
 )
+_MOBILE_LOOKUP_TERMS = (
+    "mobile",
+    "mobile number",
+    "phone",
+    "phone number",
+    "cell",
+    "direct dial",
+)
+_MOBILE_LOOKUP_PROVIDER_IDS = [
+    "forager_person_detail_lookup",
+    "leadmagic_mobile_finder",
+    "dropleads_mobile_finder",
+    "ai_ark_mobile_phone_finder",
+]
 
 def _looks_like_bulk_prospect_list(message: str) -> bool:
     text = message.lower()
@@ -350,6 +378,29 @@ def _email_for_verification(message: str) -> str | None:
         return None
     match = _EMAIL_RE.search(message)
     return match.group(0) if match else None
+
+
+def _looks_like_business_mobile_request(message: str) -> bool:
+    text = message.lower()
+    return any(term in text for term in _MOBILE_LOOKUP_TERMS) and (
+        "linkedin.com/in/" in text
+        or "business" in text
+        or "work" in text
+        or "licensed-provider" in text
+        or "licensed provider" in text
+    )
+
+
+def _linkedin_profile_url(message: str) -> str | None:
+    match = _LINKEDIN_PROFILE_RE.search(message)
+    if not match:
+        return None
+    return match.group(0).split("|", 1)[0].rstrip(".,;")
+
+
+def _linkedin_public_identifier(linkedin_url: str) -> str | None:
+    match = re.search(r"linkedin\.com/in/([^/?#\s]+)", linkedin_url, re.IGNORECASE)
+    return match.group(1).strip("/") if match else None
 
 
 def _with_email_verification_guidance(message: str) -> str:
@@ -577,6 +628,130 @@ async def _collect_email_verification_reply(message: str) -> str:
     return _format_email_verification_reply(email, tool_id, result)
 
 
+def _mobile_tool_payload(tool_id: str, linkedin_url: str) -> dict[str, Any]:
+    if tool_id == "forager_person_detail_lookup":
+        public_identifier = _linkedin_public_identifier(linkedin_url)
+        if not public_identifier:
+            raise ValueError("LinkedIn public identifier could not be parsed")
+        return {"linkedin_public_identifier": public_identifier}
+    if tool_id == "leadmagic_mobile_finder":
+        return {"profile_url": linkedin_url}
+    if tool_id == "dropleads_mobile_finder":
+        return {"linkedin_url": linkedin_url}
+    if tool_id == "ai_ark_mobile_phone_finder":
+        return {"linkedin": linkedin_url}
+    raise ValueError(f"Unsupported mobile provider: {tool_id}")
+
+
+def _flatten_phone_candidates(value: Any, *, phone_context: bool = False) -> list[str]:
+    candidates: list[str] = []
+    phoneish_keys = {
+        "phone",
+        "phones",
+        "phone_number",
+        "phone_numbers",
+        "mobile",
+        "mobiles",
+        "mobile_phone",
+        "mobile_phone_number",
+        "mobile_number",
+        "direct_dial",
+        "direct_phone",
+        "work_phone",
+        "business_phone",
+    }
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            key_text = str(key).lower()
+            next_phone_context = phone_context or key_text in phoneish_keys or "phone" in key_text or "mobile" in key_text
+            if next_phone_context:
+                candidates.extend(_flatten_phone_candidates(nested, phone_context=True))
+            elif isinstance(nested, (dict, list)):
+                candidates.extend(_flatten_phone_candidates(nested, phone_context=False))
+    elif isinstance(value, list):
+        for item in value:
+            candidates.extend(_flatten_phone_candidates(item, phone_context=phone_context))
+    elif phone_context and isinstance(value, str):
+        text = value.strip()
+        if re.search(r"\+?\d[\d\s().-]{6,}\d", text):
+            candidates.append(text)
+    return candidates
+
+
+def _first_mobile_candidate(result: dict[str, Any]) -> str | None:
+    payload = _email_verification_payload(result)
+    for candidate in _flatten_phone_candidates(payload):
+        normalized = re.sub(r"\s+", " ", candidate).strip()
+        if normalized:
+            return normalized
+    return None
+
+
+def _mobile_provider_status(exc: Exception) -> str:
+    if isinstance(exc, httpx.HTTPStatusError):
+        try:
+            data = exc.response.json()
+        except ValueError:
+            data = {}
+        detail = (
+            data.get("message")
+            or data.get("error")
+            or data.get("details")
+            or f"HTTP {exc.response.status_code}"
+        )
+        return str(detail)
+    return str(exc)
+
+
+async def _execute_mobile_lookup(message: str) -> tuple[str, list[dict[str, str]], str | None]:
+    linkedin_url = _linkedin_profile_url(message)
+    if not linkedin_url:
+        raise ValueError("A LinkedIn profile URL is required for Slack mobile lookup.")
+
+    client = get_deepline_client()
+    attempts: list[dict[str, str]] = []
+    for tool_id in _MOBILE_LOOKUP_PROVIDER_IDS:
+        payload = _mobile_tool_payload(tool_id, linkedin_url)
+        try:
+            result = await client.execute_tool(tool_id, payload)
+        except Exception as e:
+            logger.warning("Mobile provider %s failed: %s", tool_id, e)
+            attempts.append({"provider": tool_id, "status": _mobile_provider_status(e)})
+            continue
+
+        mobile = _first_mobile_candidate(result)
+        if mobile:
+            attempts.append({"provider": tool_id, "status": "verified business mobile found"})
+            return linkedin_url, attempts, mobile
+        attempts.append({"provider": tool_id, "status": "no verified business mobile returned"})
+
+    return linkedin_url, attempts, None
+
+
+def _format_mobile_lookup_reply(linkedin_url: str, attempts: list[dict[str, str]], mobile: str | None) -> str:
+    lines = [
+        f"LinkedIn: {linkedin_url}",
+        "Providers checked:",
+    ]
+    for attempt in attempts:
+        lines.append(f"- {attempt['provider']}: {attempt['status']}")
+    if mobile:
+        lines.extend(
+            [
+                "Verified business mobile found: yes",
+                f"Business mobile: {mobile}",
+            ]
+        )
+    else:
+        lines.append("Verified business mobile found: no")
+    return "\n".join(lines)
+
+
+async def _collect_mobile_lookup_reply(message: str) -> str:
+    linkedin_url, attempts, mobile = await _execute_mobile_lookup(message)
+    return _format_mobile_lookup_reply(linkedin_url, attempts, mobile)
+
+
 def _sse(event: dict[str, Any] | str) -> str:
     if isinstance(event, str):
         return f"data: {event}\n\n"
@@ -739,9 +914,9 @@ def _slack_event_allowed(event: dict[str, Any]) -> bool:
         return False
     channel = event.get("channel", "")
     user = event.get("user", "")
-    if allowed_channels and channel not in allowed_channels:
+    if allowed_channels and "*" not in allowed_channels and channel not in allowed_channels:
         return False
-    if allowed_users and user not in allowed_users:
+    if allowed_users and "*" not in allowed_users and user not in allowed_users:
         return False
     return True
 
@@ -845,6 +1020,8 @@ async def _handle_slack_event(event: dict, team_id: str):
         history = await _fetch_thread_history(channel, thread_ts, token) if event.get("thread_ts") else []
         if _email_for_verification(user_text):
             reply = await _collect_email_verification_reply(user_text)
+        elif _looks_like_business_mobile_request(user_text) and _linkedin_profile_url(user_text):
+            reply = await _collect_mobile_lookup_reply(user_text)
         else:
             payload = _slack_agent_payload(user_text)
             if history:

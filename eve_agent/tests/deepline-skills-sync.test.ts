@@ -18,7 +18,8 @@ test("Eve agent includes Deepline API well-known GTM skill package", () => {
 
   const skill = readFileSync(skillPath, "utf8");
   assert.match(skill, /name:\s*deepline-gtm/);
-  assert.match(skill, /Route CSV-heavy and provider-driven requests here/);
+  assert.match(skill, /GTM Meta Skill/);
+  assert.match(skill, /provider-driven requests|provider\/quality defaults/);
 });
 
 test("committed Deepline skill snapshot matches well-known index API when available", async () => {
@@ -225,8 +226,9 @@ test("copied Deepline skills preserve support documents needed by recipes", () =
     "deepline-gtm/provider-playbooks/salesforce.md",
     "deepline-gtm/recipes/linkedin-url-lookup.md",
     "deepline-gtm/scripts/validate-emails.py",
-    "deepline-plays/references/sdk-reference.md",
-    "deepline-plays/references/find-companies-contacts-tam.md",
+    "deepline-gtm/references/plays-sdk-reference.md",
+    "deepline-gtm/references/plays-api-reference.md",
+    "deepline-gtm/references/plays-run-export-inspect-repair.md",
   ]) {
     const targetPath = resolve(eveRoot, "agent/skills", relativePath);
     assert.equal(existsSync(targetPath), true, `${relativePath} should be preserved`);

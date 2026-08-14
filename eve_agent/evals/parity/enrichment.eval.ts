@@ -7,7 +7,7 @@ export default defineEval({
   timeoutMs: 240_000,
   async test(t) {
     await t.send("Find the work email for Satya Nadella at microsoft.com");
-    t.completed();
+    t.succeeded();
     t.calledTool("deepline_chat");
     t.check((t.reply ?? "").toLowerCase(), includes("microsoft"));
   },

@@ -2,16 +2,16 @@
 // Source: scripts/sync-deepline-skills.ts
 export default {
   "sourceIndexUrl": "https://code.deepline.com/.well-known/skills/index.json",
-  "indexVersion": "52523726a2cb5f5e0c6950787289f35cda4bfb538f78ce796a645a5662155200",
-  "indexGeneratedAt": "2026-06-23T23:15:04.837Z",
-  "generatedAt": "2026-06-24T01:05:37.950Z",
+  "indexVersion": "0bbb75bba442d9127c529095f9f2c6058a06c7dbd191b0a3ad0563b79dd917d9",
+  "indexGeneratedAt": "2026-07-25T03:43:11.627Z",
+  "generatedAt": "2026-07-25T13:42:24.371Z",
   "skills": [
     {
       "name": "build-tam",
       "files": [
         {
           "path": "SKILL.md",
-          "sha256": "347852d981c203cc3e9b6fc6557ead7c319547e8163193383440966bea45a073"
+          "sha256": "1a7b72f22e44a4c46af32cd76a91925737e7be8e31c881b84ff5c870cf2fa926"
         },
         {
           "path": "skill-metadata.json",
@@ -24,11 +24,68 @@ export default {
       "files": [
         {
           "path": "SKILL.md",
-          "sha256": "c5b28b853b43552a39771705805a5bc84d8e25391a93ced70fa842c0d0b757de"
+          "sha256": "0c60bd09045ee094fa72deb0907a190893512098b8822ee06b18e5884274ecbf"
         },
         {
           "path": "skill-metadata.json",
           "sha256": "c38443ec2ce41379361adb12ffed694e32e8f77984cc47c6ae66ba78d314acc0"
+        }
+      ]
+    },
+    {
+      "name": "deepline-ads-audiences",
+      "files": [
+        {
+          "path": "plays/audit-no-double-hash.play.ts",
+          "sha256": "1d7913e5258fb5b4473ca2a86f9fb4c45d53c0eedd6d9381c7abf92ce22a476b"
+        },
+        {
+          "path": "plays/build-hash-only-audience.play.ts",
+          "sha256": "9986b147b5874fbe15fa57fe60156abdbcbecb2aa83a3fe29a4a964448b7c1a7"
+        },
+        {
+          "path": "plays/evaluate-leadmagic-personal-email.play.ts",
+          "sha256": "0089b487be93ff13f62bdb1f5dd5a93fb40761156bbef16e7b808cb692dc8bfa"
+        },
+        {
+          "path": "plays/evaluate-personal-email-provider.play.ts",
+          "sha256": "95782060e2180bb6b0a57385ad6ed81460ca472e2d71befe908d3dbb7df39a8b"
+        },
+        {
+          "path": "plays/report-google-coverage-lift.play.ts",
+          "sha256": "4be4fb60d9121bd32401589a487682e1137f39bbaef92037b7526518ce2f6265"
+        },
+        {
+          "path": "plays/shared/audience-hash.ts",
+          "sha256": "532a728999d9088d48fe61a081357300568308cfbe88c04e56941d9cacebb368"
+        },
+        {
+          "path": "plays/upload-facebook-google-hash-only-audience.play.ts",
+          "sha256": "f79902e45ceec0cd6303c55cf4c8765e598aaee4a62726888e72731e43e1b93e"
+        },
+        {
+          "path": "plays/upload-google-hash-only-audience.play.ts",
+          "sha256": "62bdba788afa8cbdb4fa537c2f9fd6bb1287a57c467d08d68cd5d313611b4ad6"
+        },
+        {
+          "path": "recipes/enrich-and-upload-facebook-google.md",
+          "sha256": "bc2fdf48f4d97341c6e5dd36b13af42f128e5ae98fa9c5fd312971b0cd7c9155"
+        },
+        {
+          "path": "recipes/max-coverage-audience.md",
+          "sha256": "9db0bd18333b57eb02e678df79469d3a106dcb13a709207f14e850de252062a5"
+        },
+        {
+          "path": "recipes/sample-abm-segment-example.md",
+          "sha256": "514594fd232341a06b84339ec0593b56da0100a9beb8c997e2d3aa398ea7f211"
+        },
+        {
+          "path": "skill-metadata.json",
+          "sha256": "3056eaf52665c210c7194b24f3a314119d3461370891a80eb05a8e45d7802967"
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "10687061e4c9c46078c589157004fa1e565f2fdf67d16f67dbabc0d9712a6bd9"
         }
       ]
     },
@@ -41,7 +98,7 @@ export default {
         },
         {
           "path": "SKILL.md",
-          "sha256": "7ea15cfade7c841bf5c98bc6d9950dcdd4b8dcb441e0dcd21b0e6bb08fe9f7ac"
+          "sha256": "8165b839e78a7e287fc54e53d5b0c7e6ac1ca174ce28b88b6c2c11e31db4dd3c"
         }
       ]
     },
@@ -54,7 +111,7 @@ export default {
         },
         {
           "path": "SKILL.md",
-          "sha256": "a1bd0fbd7120228b61aafe6a45a49a30be42233ff6662f00e8a5aa29a7c890f6"
+          "sha256": "ccfe19cd7caf5438eca8abc000601df0c5260d1f823b026ba8711683e2f61943"
         }
       ]
     },
@@ -71,15 +128,15 @@ export default {
         },
         {
           "path": "claude-deepline-statusline.mjs",
-          "sha256": "eeaf9d237ece90bd8b96f781ac482ccbb56729799c69f61c8bc1391fe3c796da"
+          "sha256": "7706aa723a7265d95f4a1c9bb4b2b0089889c7e6c18835d3ab1609cc646ace3a"
         },
         {
           "path": "enriching-and-researching.md",
-          "sha256": "60fa8c992b1c35d4233fbd97392868dca5e1503ebb17ca0f93dbf14155358d03"
+          "sha256": "d87eafe688feddc36e62c27b1fa2583ab20ebb052751dbc6d235558fce766963"
         },
         {
           "path": "finding-companies-and-contacts.md",
-          "sha256": "d256bd0908cbd010e5c7818ab198f3c20c9b50a9bb52ba2435bed1f5d349b058"
+          "sha256": "35f7a94b858f8f41cd8cad059e91fbf1a60f63be53d93271c42d3be8a65abd1e"
         },
         {
           "path": "prompts.json",
@@ -107,7 +164,7 @@ export default {
         },
         {
           "path": "provider-playbooks/aviato.md",
-          "sha256": "5728b67273852576995e0f1f41041099d25813530137a1f950a27420d4798aaf"
+          "sha256": "6a2d94609dc2adae69ff3612204f4e44de1656ce486560763a5521ff74fc934a"
         },
         {
           "path": "provider-playbooks/bettercontact.md",
@@ -116,6 +173,14 @@ export default {
         {
           "path": "provider-playbooks/bloomberry.md",
           "sha256": "f447e9af8675c2928eddbe44bb73da9e9054d2cf04c2ee8715cc5ffbbeb004cd"
+        },
+        {
+          "path": "provider-playbooks/bluesky.md",
+          "sha256": "390cfc2a197731023e3b7670fd6fc6a98d4b9f2b8c59573b1557d2c30401a9d9"
+        },
+        {
+          "path": "provider-playbooks/browserbase.md",
+          "sha256": "55be88f63cad372fe83690dbdd771ea221d4205017901bd33c983704c2e6ad14"
         },
         {
           "path": "provider-playbooks/builtwith.md",
@@ -127,11 +192,15 @@ export default {
         },
         {
           "path": "provider-playbooks/contactout.md",
-          "sha256": "33b5e74df6ba01b7871d822634a6269e5228f8de3f5110341940f2964f0d4b1d"
+          "sha256": "dd56199de540f3bb7d3b4df0f8a032c9cdb67b15f6e1bc6c4fe21dcd2a3435c6"
         },
         {
           "path": "provider-playbooks/crustdata-v2.md",
           "sha256": "0297b5485847911c8ca6e808220194b8694953e25c5020f97b1901fea9f3e148"
+        },
+        {
+          "path": "provider-playbooks/crustdata-v3.md",
+          "sha256": "02d45ad14eddbad357157be967445b8a588d3b7a84d08d675f41c8fda64ac26a"
         },
         {
           "path": "provider-playbooks/crustdata.md",
@@ -143,11 +212,11 @@ export default {
         },
         {
           "path": "provider-playbooks/datagma.md",
-          "sha256": "868639b1ab1c69c2548838cd8b81abb5947d310ad5c5c6d7bff386fb68d7eaa5"
+          "sha256": "722fd1df319903123bcd7610e49bfe83515f23df9f047170f8aa84af1a458376"
         },
         {
           "path": "provider-playbooks/deepline_native.md",
-          "sha256": "5e64b76c384c761815a117bcc88476db7fc5244c867681cf0735ce350544187f"
+          "sha256": "d99bc9b1474780484e148458082c6f63ea45822fd6d5cde9ef528a5401450577"
         },
         {
           "path": "provider-playbooks/deeplineagent.md",
@@ -164,6 +233,10 @@ export default {
         {
           "path": "provider-playbooks/emailbison.md",
           "sha256": "e7d988890869d7af3b8fc6e387341d7f0b9ec213ea458dc041e6c98c553b1b18"
+        },
+        {
+          "path": "provider-playbooks/emailguard.md",
+          "sha256": "ff635b169af46d1ade6b0e00bf63f50ba0ebb399f150ca16d4fc79d5e990a738"
         },
         {
           "path": "provider-playbooks/enformion.md",
@@ -194,8 +267,16 @@ export default {
           "sha256": "14cf369d8fc05e7856c256f734025df38333fb8728c84897f6c8982448ddf398"
         },
         {
+          "path": "provider-playbooks/gong.md",
+          "sha256": "5c155f3807f90bff9a3640be7b2c6a2bcf02f7f6b4b32c013ad8b0c65eea89a4"
+        },
+        {
           "path": "provider-playbooks/google_ads_audiences.md",
           "sha256": "cc5bcc0844409248f9f5b90a9ca97cd70b6f430e05ea6b6021ef4eac7ca6e5cc"
+        },
+        {
+          "path": "provider-playbooks/hackernews.md",
+          "sha256": "7067f1990261bc6b7610a514e6599c805faff691a2944560d8a8cf32043085a9"
         },
         {
           "path": "provider-playbooks/heyreach.md",
@@ -203,7 +284,7 @@ export default {
         },
         {
           "path": "provider-playbooks/hubspot.md",
-          "sha256": "53e78df6bbc6e03a42b9849b681c60d1fb5c9ebcee2a5b0f9623270232aa8a84"
+          "sha256": "45f8aeb9ddf2cbf9eca74e1ea1f3646ec1ebee1d3dfce5296dbc71ccdc59fc0e"
         },
         {
           "path": "provider-playbooks/hunter.md",
@@ -211,11 +292,15 @@ export default {
         },
         {
           "path": "provider-playbooks/icypeas.md",
-          "sha256": "d84a4fc8eee74f2118d5411ea6dd01b5dab5f006d007b2c8ca0cf60761337d2a"
+          "sha256": "aaf716b311acd7d5cecb75cce638196baf648d5ba6379b9200595511de71c587"
         },
         {
           "path": "provider-playbooks/instantly.md",
           "sha256": "f951a104ade9723ca229b88b3107b3bf149b0c256df38195c037d25092a4bdda"
+        },
+        {
+          "path": "provider-playbooks/intercom.md",
+          "sha256": "0f872cf41d0eee4c30f696bd7e610a41b91f4f6a31dafa7a26173b228889e973"
         },
         {
           "path": "provider-playbooks/ipqs.md",
@@ -247,7 +332,7 @@ export default {
         },
         {
           "path": "provider-playbooks/openmart.md",
-          "sha256": "28781e4df3643c308b92b3e9e2244615a1be1a3002a53a86427eb7159f5b4a21"
+          "sha256": "7690b99981c4004f1599e639b3dcd1cd4c7695cf7c5c5e8e5ee8f7a9310a88f0"
         },
         {
           "path": "provider-playbooks/opensosdata.md",
@@ -263,7 +348,11 @@ export default {
         },
         {
           "path": "provider-playbooks/peopledatalabs.md",
-          "sha256": "96d32289d21f9ab97bb1a641b39d7f4e6c870b9b06994b67d0b6243b471ad37d"
+          "sha256": "36f0b760c8d4c3a505892b24238332bf4c700f09af98ee474b070799994709b7"
+        },
+        {
+          "path": "provider-playbooks/podscan.md",
+          "sha256": "ca5e1f9d4893a9ae72418c09c24c6a4e2e88b5e98d6e7f82c6936a6aa7b88231"
         },
         {
           "path": "provider-playbooks/predictleads.md",
@@ -278,8 +367,16 @@ export default {
           "sha256": "82129709d365b694cd7dbd054c024017d7d40fb3f510efe2cf5bd79a34283dc9"
         },
         {
+          "path": "provider-playbooks/salesforge.md",
+          "sha256": "b22cf829e15783bf4cf05df2f2398b601c4ced4e6150ec6e477b936de55c11f9"
+        },
+        {
           "path": "provider-playbooks/scrapecreators.md",
-          "sha256": "fa6b66d916b34a99605b99c3a458de290f728ac10bfc62a7434695908773efcc"
+          "sha256": "1e04388dfae78c70b48f86c0e1ed6668b69cfb1e22fe30b416d555c3f339cae1"
+        },
+        {
+          "path": "provider-playbooks/sentrion.md",
+          "sha256": "bcc0ea0320ca1b40181c6a9ec290004b087dc6df053c1e4bda9cef12cb60f729"
         },
         {
           "path": "provider-playbooks/serper.md",
@@ -287,15 +384,15 @@ export default {
         },
         {
           "path": "provider-playbooks/smartlead.md",
-          "sha256": "a3d8540d8c74670b9b2a5a278c95e70a975d9e030fa7db56aaff288ab461c596"
+          "sha256": "47b47a2413a8c7516fd395ae56bf53469856aa3d314e667dabad578311089f98"
         },
         {
           "path": "provider-playbooks/snowflake.md",
           "sha256": "b107ac7168252f524bf6c07cfb4f0c6534120b13f1263f7b2e357412ee6b3291"
         },
         {
-          "path": "provider-playbooks/tamradar.md",
-          "sha256": "49874cc4f8e151290738d2735b8df64d905b9b32e668619c813adeadbec59ab4"
+          "path": "provider-playbooks/sumble.md",
+          "sha256": "53a212cdfec3afb8d6875d478d017e1a9ee5e0f91bf675939d9bc5e23073cac1"
         },
         {
           "path": "provider-playbooks/theirstack.md",
@@ -303,7 +400,11 @@ export default {
         },
         {
           "path": "provider-playbooks/trestle.md",
-          "sha256": "3e5dfdf8d6aa438d778306bb93c7befc597cc3e0961490a983894b54287598a2"
+          "sha256": "52e619546d770d32f33a17de5d8ee2ad5e5c591af9746a2fa8406202468c0a8d"
+        },
+        {
+          "path": "provider-playbooks/twitterapi.md",
+          "sha256": "34d85de71d75f7bd6d279ea33a504c8e55cd164a63954a07b78ee6d73b128f09"
         },
         {
           "path": "provider-playbooks/upcell.md",
@@ -311,7 +412,7 @@ export default {
         },
         {
           "path": "provider-playbooks/wiza.md",
-          "sha256": "9ee972d0f4059e141f11b2b4695a2b7fa767be1b33d7df28e0acca8c4ad72062"
+          "sha256": "f37a3fb6022dbb6b2499dc659373805c106b22f20d13bc752fde4bf80d7ba839"
         },
         {
           "path": "provider-playbooks/wizleads.md",
@@ -323,7 +424,7 @@ export default {
         },
         {
           "path": "recipes/account-orgchart.md",
-          "sha256": "e4116865ccb7bccb239bee087cbf4bad819ae1a4bdf5f8c43c5a00f38e49f81c"
+          "sha256": "ca15b223b4d932252960308f25ef97afcfbe6989be57d981386b0ef003e6cfa9"
         },
         {
           "path": "recipes/build-tam.md",
@@ -331,47 +432,55 @@ export default {
         },
         {
           "path": "recipes/clay-to-deepline.md",
-          "sha256": "557eab92fb57fac2b5689a89299139a896a341b6a1fef58992808be58131ee03"
+          "sha256": "1f75c163820965a2fec0c320679216827d3b16a89ccd7dc9abc6e260745ff36f"
+        },
+        {
+          "path": "recipes/deepline-monitors.md",
+          "sha256": "29eff3107681209fd307482b65f4e3992c319fab92cf9b64b25c8f01467ce73a"
+        },
+        {
+          "path": "recipes/deepline-plays.md",
+          "sha256": "a6674d08e1457ffc6bdef520aac64bff2b0c638855854ffe51aa25fc82cfbd0a"
         },
         {
           "path": "recipes/find-qualified-titles.md",
-          "sha256": "a28ee5a99f6142898ef24f06ce49020d646e1c953e2a44ad5fccf8770ae6c34c"
+          "sha256": "fb586e6a0c412df919bfdf8d14631b3caf8849735f55e08bb5d493df207a5a86"
         },
         {
           "path": "recipes/linkedin-url-lookup.md",
-          "sha256": "fd6e07074e900c97d7f53775ad7097168930c71b57ee1503e5b62d1acd0bb247"
+          "sha256": "3b40eb3a727ada52c245a5fbc88d79ddf377d19989fd965c49cede9342baa4b3"
         },
         {
           "path": "recipes/portfolio-prospecting.md",
-          "sha256": "ad30c58a5792d269aabd66cb6865ac0ead08a28370b52237229b5fa4c08b6803"
+          "sha256": "ce3fbe6a18361d3b440fa63d87291806a6734dd0b756338754d49bd15dde7895"
         },
         {
           "path": "recipes/small-business-prospecting.md",
-          "sha256": "846684526c7cc11fc24c92c34d5160b8150988d8a7207bbba7be6238e1e1ebd5"
-        },
-        {
-          "path": "recipes/workflows-hello-world.md",
-          "sha256": "38b6575b7c24f064a9dfa918117bb631d3cdb8d460cbeb19f7b84e74a6a29d94"
+          "sha256": "6de3dc6e698c1ae277ddd589e9d0c9fb9cdec43fbf57bd7073ddcbcaab9bca02"
         },
         {
           "path": "references/clay-action-mappings.md",
-          "sha256": "4b5386fa91d9552d0e3845c339f434fc9e32d9810eca8587f4b7f02c9215406f"
+          "sha256": "0eb1174298c8950da510c6ffb980df1fbdd806e030a2f33dfd2a0c03032e38cd"
         },
         {
           "path": "references/clay-extraction.md",
           "sha256": "295d61303dfebe2ef4d4ffa083ff5004f6732e063a6cc69a126818c7877d64ec"
         },
         {
-          "path": "references/cloud-workflow-builder.md",
-          "sha256": "3322bb41dc933916e73bb4755d211eb00a427ea29fb1a6cc9823107e84c370af"
-        },
-        {
-          "path": "references/cloud-workflow-migrations.md",
-          "sha256": "754f640ad4860b47cd41c94ddce0ff59d5951fd52dbd6391b890901f04077ad0"
-        },
-        {
           "path": "references/contact-accuracy.md",
           "sha256": "eb82d25ef599e084a31eff235c1a1c7683f8160d82aff39b116a16b66744378b"
+        },
+        {
+          "path": "references/plays-api-reference.md",
+          "sha256": "149306a1928d18e1793d321acc6989b3ce8f0fad12efaa000840bc2c6d63fab8"
+        },
+        {
+          "path": "references/plays-run-export-inspect-repair.md",
+          "sha256": "f6a9054a00640f6d8cc04307af0a3abf6b6478c28af23d691d83d9a6cd06b5d4"
+        },
+        {
+          "path": "references/plays-sdk-reference.md",
+          "sha256": "01c271532cc3524a7409c0a6b16871184cfd6637b49bd636bb81b52285795863"
         },
         {
           "path": "scripts/clay-extract-bookmarklet.js",
@@ -419,15 +528,28 @@ export default {
         },
         {
           "path": "skill-metadata.json",
-          "sha256": "754abfb6ceab2a6ac762cb23295917a3e582da75a7239dbf640f7de5ee9da97c"
+          "sha256": "89703ee3a83909b1f85be608a82f3608fafd19c27a95129192b1274eee9944ec"
         },
         {
           "path": "SKILL.md",
-          "sha256": "56f12d481e25f7d6bbc927dff518cae8c0f7f261cc24acb09338b885989f02c5"
+          "sha256": "6b044ed383e3f50cbda5b668d8670dbda358f43e2dcd161629911973d40a1b95"
         },
         {
           "path": "writing-outreach.md",
-          "sha256": "01b69c8df9c8db6a9c52957c9aa43dac7bda54b1105612696731d5d4d9303bdf"
+          "sha256": "09024ea7e05c19b7ebd991ea498ba7b0d9554f7ba5ca1a668288cb51dfea72b2"
+        }
+      ]
+    },
+    {
+      "name": "deepline-monitors",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "7d1f82699cfd7fb89b8d0f04eb8c6f6e8cef988c0aee2b770f98b51fa6435188"
+        },
+        {
+          "path": "skill-metadata.json",
+          "sha256": "0b8b84485fafb915e0a840f7acd4a9e5861301fedb0d44e0da33399258e6e934"
         }
       ]
     },
@@ -435,58 +557,81 @@ export default {
       "name": "deepline-plays",
       "files": [
         {
-          "path": "evals/prompt-routing.json",
-          "sha256": "172ffe174faea49433961fa497e83cea47495415719cc8c1f90e50c320793576"
+          "path": "jobs/enriching.md",
+          "sha256": "5edb30a576ce52999324ec3c43c53dbabb46f4d6ae20a3002de64a01e53cee1c"
         },
         {
-          "path": "references/api-reference.md",
-          "sha256": "31502cf24a37df00a9922559b38975f951ab3f981d519be1776f45e1485b90b0"
+          "path": "jobs/finding.md",
+          "sha256": "7d99c786ce7271567d631430345f8d272dc74576651017d43beaba05919870cf"
         },
         {
-          "path": "references/find-companies-contacts-tam.md",
-          "sha256": "f5240d0a5c8a49c61e0dc84ee2faf2e2da9dd1c6c6e899d260105657edc77e3f"
+          "path": "jobs/writing.md",
+          "sha256": "c40ff8bf02879ffbae56aacbfb80b1e0ab70976e16d0e60e32ef37eba76e593e"
         },
         {
-          "path": "references/run-export-inspect-repair.md",
-          "sha256": "f6a9054a00640f6d8cc04307af0a3abf6b6478c28af23d691d83d9a6cd06b5d4"
+          "path": "references/debugging.md",
+          "sha256": "374b15b9cf1a687342d4cdcc9b686327e4c45d5502545e8c9c8e886123600b8e"
         },
         {
-          "path": "references/sdk-reference.md",
-          "sha256": "b4700595f4180b661302087960659eafbce4d653749c943be26c8ae1bb22d71a"
+          "path": "shared/authoring.md",
+          "sha256": "52877967bd2b52fdff8faf3d345de2f8010d39e468aae769ede4dfe17ab65896"
+        },
+        {
+          "path": "shared/correctness.md",
+          "sha256": "e9841b5361536c2458169a7e9344c552cae1755398a334d73c59d3718314f46f"
         },
         {
           "path": "skill-metadata.json",
-          "sha256": "ad9073ef9f9020202035909462955be2154c092102b2a43d6c19306ead3a3829"
+          "sha256": "ffa16e84239d1eacba9bdf82a403df10fb5dbacea74609683488e9d154f6d922"
         },
         {
           "path": "SKILL.md",
-          "sha256": "e99a87c187710263cc7ffa1ba7584955051f46b35420bb05361d84bf38efca35"
+          "sha256": "692d150ff9b5ddaecb8cca17bdc5d20dca86856ae47b44497790a010806f0710"
         }
       ]
     },
     {
-      "name": "deepline-plays-feedback",
+      "name": "deepline-pre-research",
       "files": [
         {
+          "path": "references/fanout-consolidation.md",
+          "sha256": "987123fe44b44c44a44a2e7a5f6e91446d97d77674f6ba7ac3e3c97152ce9829"
+        },
+        {
+          "path": "references/last30days-gtm-corpus.md",
+          "sha256": "b560ca3192f3c359a04df87f50a1844c0b1d32fa8c579c7af5d91c78e32218b6"
+        },
+        {
+          "path": "references/query-design.md",
+          "sha256": "a61e95cccfb7cb86ddfc9d967d3e785293a554664c042f535b240a77c34d36e3"
+        },
+        {
+          "path": "references/source-map.md",
+          "sha256": "27d424245b09be78dfe11d34313dfa26a507e7058fcf0efd35748f96ca44569b"
+        },
+        {
+          "path": "scripts/evaluate_examples.py",
+          "sha256": "749a242eb4091549fceb6d66b9e3a10c7a83c790ca48eba82c45c2877ee54ed7"
+        },
+        {
+          "path": "scripts/evaluate_public_private_corpus.py",
+          "sha256": "4e885a73ac7198909d1d18b1024020448cf781403ccccef3ab8865732524b311"
+        },
+        {
+          "path": "scripts/query_design.py",
+          "sha256": "e08a9a95a685253ddcae535cec396b3dfcd606367124ef38aed86abf9ebe0c05"
+        },
+        {
           "path": "skill-metadata.json",
-          "sha256": "4ab1a007f4ab5db5057a955096b27de63d9b962993105e8c28a05d5d5727edd3"
+          "sha256": "6ace8fd6caf947dd7a775ffd07cce7e0f52963e314f2b14b2dc41eb3814b395c"
         },
         {
           "path": "SKILL.md",
-          "sha256": "dd66b222ccbcbf26ae9af9d0e9db89097eb71ee6b986d1dccdfb1d85d1964d5d"
-        }
-      ]
-    },
-    {
-      "name": "deepline-plays-quickstart",
-      "files": [
-        {
-          "path": "skill-metadata.json",
-          "sha256": "504dd4975dfa69dc06664ba8f8823c50c8d616299ffc3a4c356e42a088d45dab"
+          "sha256": "917a81c2e22f35c6295785e1feb77bd84c206ad21671f5c5fdabe945a3b847df"
         },
         {
-          "path": "SKILL.md",
-          "sha256": "b24c5f27f5544d2411f456bec6cf12302bc9a70d753c2062e468e5bfebbe6626"
+          "path": "THIRD_PARTY_NOTICES.md",
+          "sha256": "b180a6ecfd54b319d1e61b130116db810201ef586617ff405d1c5a0b471c2089"
         }
       ]
     },
@@ -499,7 +644,7 @@ export default {
         },
         {
           "path": "SKILL.md",
-          "sha256": "6dc09d0eae135ecf8aed6d131ce48ff703269e0bd1e6654d559c5ac260628fc5"
+          "sha256": "dca5d4d4d105a1a725f68dc4068c3a3fa004f6ef1e03c2fe7f4ce235ed02cf64"
         }
       ]
     },
@@ -508,7 +653,7 @@ export default {
       "files": [
         {
           "path": "SKILL.md",
-          "sha256": "664cf537c80115bb02363490c9749ea1d52721781b1704761021232320ad2808"
+          "sha256": "3d0064837d82fa525352dc42a83e008436fc5cde83c510f3eba48ba12646a3b8"
         },
         {
           "path": "skill-metadata.json",
@@ -521,7 +666,7 @@ export default {
       "files": [
         {
           "path": "SKILL.md",
-          "sha256": "cb2688d2ccf75704e2b0aa0787a48624a694d3f8cd3f321d20035af2b0abe8b7"
+          "sha256": "440277b266a2ca0c41ea1be2ff73528300ffef18e2fb106bafca2fdde30a0791"
         },
         {
           "path": "skill-metadata.json",
@@ -554,7 +699,7 @@ export default {
         },
         {
           "path": "references/report-template.md",
-          "sha256": "533893f5798c6d615a42fe76e8573c45cc4fef03a2c8d8ab587c367cd8e4b847"
+          "sha256": "54e61310131c34a387c50bf277ee5ec2328f5d6825365305121c8e5624b95fde"
         },
         {
           "path": "references/scoring-pitfalls.md",
@@ -566,7 +711,7 @@ export default {
         },
         {
           "path": "references/step-7-prospects.md",
-          "sha256": "729c4af8d3430a552074a7bade38fdcb0316554c46148e30098b2ce23d3ef2cb"
+          "sha256": "377001f6351a512fdb61d39874186678f974bf52f41bdc2f93a14137325112d7"
         },
         {
           "path": "scripts/analyze_signals.py",
@@ -578,7 +723,7 @@ export default {
         },
         {
           "path": "scripts/find_contacts.py",
-          "sha256": "c353bdb1b9bab6707451df7bea06b7a4261dd830e3359e4c086d91f170ebbcc0"
+          "sha256": "851e46045a04977ae8385b4dfa0f8b35266cd5cc7bdc2fc884484b83e744155a"
         },
         {
           "path": "skill-metadata.json",
@@ -586,7 +731,7 @@ export default {
         },
         {
           "path": "SKILL.md",
-          "sha256": "642c0ec97473f47b28c6e768c57ac193ffa752fa9f0fe86b71c8ddeb6b272bed"
+          "sha256": "feb16401dd9bfdf2f7720120328788abce2345dc8cf1d9c8f38dfd31724b1a17"
         }
       ]
     },
@@ -595,24 +740,11 @@ export default {
       "files": [
         {
           "path": "SKILL.md",
-          "sha256": "2faec4baa9f7385830eeb0ca1f7f41455f67aac04fa8d9549999fda6dae7d847"
+          "sha256": "4bd553accfc53644848ddbd8db7514850a53c39bca8c8b920dee18fea77ac00a"
         },
         {
           "path": "skill-metadata.json",
           "sha256": "fd2c65ab3b4213f39b21eab09ec3480832ef3800e4ec60f06a337c9d4a1d0464"
-        }
-      ]
-    },
-    {
-      "name": "workflow-hello-world",
-      "files": [
-        {
-          "path": "SKILL.md",
-          "sha256": "4475d0b8c79c5a523365037e5b3e50d9012bd72e25ca08d274a4befc984e0ba4"
-        },
-        {
-          "path": "skill-metadata.json",
-          "sha256": "5003b0de09da8434ead6950f84fe77484e0464f99870794ee0a09ce3f8cc72c0"
         }
       ]
     }

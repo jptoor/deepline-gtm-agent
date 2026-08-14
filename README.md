@@ -1,8 +1,35 @@
 # deepline-gtm-agent
 
-Open-source GTM chat agent powered by [Deepline](https://deepline.com). The default path is Deepline v2 native agent/chat: your app brokers Slack, REST, and web chat requests while Deepline handles tool routing, enrichment, research, CRM actions, and provider-specific workflows through the v2 API.
+Open-source GTM agent adapter powered by [Deepline](https://deepline.com).
+
+**Tested framework targets:** `Eve` · `LangChain Deep Agents` · `Anthropic Managed Agents`
+
+Use this repo when you want to ship a rep-facing GTM agent surface without
+rebuilding data providers, enrichment waterfalls, workflow state, billing,
+credentials, or writebacks yourself. The app brokers Slack, REST, web chat, Eve,
+Notion Worker, Hermes, and Azure-hosted deployments while Deepline handles tool
+routing, enrichment, research, CRM actions, provider-specific workflows, and run
+observability through the v2 API.
 
 **API portal:** [code.deepline.com](https://code.deepline.com) - create your `DEEPLINE_API_KEY` there.
+
+## When to use this
+
+Use this repo if you are building:
+
+- a Slackbot that lets reps ask for account briefs, enrichment, routing, or next
+  actions
+- a custom agent backend for rep workflows in Claude, ChatGPT, Eve, Hermes,
+  Notion Custom Agents, or an MCP-style host
+- a deployable HTTP surface for GTM workflows on Railway, Vercel, Azure
+  Container Apps, or your own container platform
+- a reference implementation for approval-gated CRM/outreach actions where
+  Deepline remains the system that owns execution and logging
+
+Do not use this repo to recreate Deepline inside another app. Keep provider
+waterfalls, CRM writes, play execution, credentials, billing, and run history in
+Deepline. Keep this repo focused on transport, auth, prompt/tool bounds,
+deployment, and workflow packaging.
 
 ## Quickstart
 
@@ -29,14 +56,21 @@ The agent handles common GTM workflows with Deepline's v2 tool catalog and API:
 
 | Workflow | Example prompt |
 |---|---|
-| Contact enrichment | "Find the email for Jane Smith at Acme" |
+| Account brief | "Create a rep-ready account brief for Prove before my call with their RevOps lead" |
+| Signal stacking | "Score these accounts using fit, intent, readiness, anti-fit, and missing-evidence signals" |
+| Org chart building | "Build a buying committee map for Stripe across Sales, RevOps, Partnerships, and Security" |
+| Contact enrichment | "Find the verified work email for Jane Smith at Acme" |
 | Prospect search | "Find 10 VP Sales at B2B SaaS companies, 200-500 employees, US" |
-| Account research | "Research stripe.com and summarize GTM-relevant signals" |
 | Email verification | "Is jsmith@acme.com safe to send?" |
 | LinkedIn resolution | "Find the LinkedIn URL for Tom Nguyen at Notion" |
-| CRM and outreach | "Create a HubSpot contact" or "show my Lemlist campaigns" |
+| Slack business mobile lookup | "Use /deepline-gtm to find this person's verified business mobile from their LinkedIn URL" |
+| CRM and outreach drafts | "Draft the HubSpot update and ask before writing it" |
 
 Responses should include sources, provider outcomes, and a clear next step. The agent should state data gaps instead of inventing missing emails, titles, or company facts.
+
+See [`docs/workflow-coverage.md`](docs/workflow-coverage.md) for the Prove
+workflow coverage matrix and the public GTM-agent repo patterns this adapter is
+designed around.
 
 ## Eve reference implementation
 
@@ -55,13 +89,25 @@ npm run smoke -- --host http://127.0.0.1:3000
 
 See [`eve_agent/README.md`](eve_agent/README.md) for the full local, eval, and Vercel flow.
 
+## Tested Frameworks
+
+| Framework | Repo surface | Use it when |
+|---|---|---|
+| Eve | [`eve_agent/`](eve_agent/) | You want durable sessions, evals, and fast Vercel deployment for a Deepline-backed GTM agent. |
+| LangChain Deep Agents | legacy/self-hosted Python agent path and migration tests | You want to compare the older DIY agent loop against the current thin Deepline v2 broker. |
+| Anthropic Managed Agents | [`managed_agent/setup.py`](managed_agent/setup.py), [`managed_agent/session.py`](managed_agent/session.py) | You want Anthropic's hosted operator runtime while Deepline remains the GTM execution backend. |
+
+The current default runtime is still the thin FastAPI broker over Deepline v2.
+The tested framework targets are adapter surfaces, not separate GTM execution
+layers.
+
 ## Architecture
 
 ```
-Slack / REST / Web UI
+Slack / REST / Web UI / Eve / Notion Worker / Hermes / MCP-style host
       |
       v
-FastAPI broker
+Thin agent adapter
       |
       v
 Deepline v2 agent/chat + SDK/API
@@ -115,6 +161,20 @@ python tests/run_evals.py \
   --output tmp/hermes-sprite-eval-results.json
 ```
 
+## Notion Worker GTM Waterfall
+
+The Notion Worker demo is a standalone GTM workflow surface for Notion Custom Agents. It embeds the Deepline TypeScript SDK in a Notion Worker and exposes typed tools for company-to-contact discovery, work-email waterfall enrichment, play discovery, play execution, and run polling.
+
+Use [`docs/notion-worker-gtm-waterfall.md`](docs/notion-worker-gtm-waterfall.md) for the deployed Worker details, Custom Agent instructions, waterfall input shape, and the current end-to-end test evidence.
+
+## Azure Container Apps
+
+Use Azure Container Apps when the buyer wants Azure-native hosting for the
+FastAPI broker or Slackbot. The root `Dockerfile` is production-safe and the
+repo includes a GitHub Actions workflow for Container Apps.
+
+Start with [`docs/azure-container-apps.md`](docs/azure-container-apps.md).
+
 ## Interfaces
 
 ### Web chat
@@ -152,6 +212,10 @@ curl -X POST http://localhost:8000/chat \
 
 Set `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET`, then DM the bot or mention it in a channel. See [SETUP.md](SETUP.md).
 
+Slack runs read-only by default. For explicit B2B mobile lookups that include a
+LinkedIn profile URL, the broker calls Deepline's licensed providers directly
+and reports the provider status instead of refusing or inventing a number.
+
 ### SDK/API
 
 Use `DEEPLINE_API_KEY` for Deepline v2 API calls. Keep API keys in environment variables or your deployment secret store.
@@ -174,7 +238,9 @@ For full chat behavior, use the v2 agent/chat SDK or API from the broker layer i
 
 ## Deploy
 
-See [SETUP.md](SETUP.md) for Railway and Slack setup. Required production variables:
+See [SETUP.md](SETUP.md) for Railway and Slack setup, or
+[`docs/azure-container-apps.md`](docs/azure-container-apps.md) for Azure
+Container Apps. Required production variables:
 
 | Variable | Required | Description |
 |---|---|---|
