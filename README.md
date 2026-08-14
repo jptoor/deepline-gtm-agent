@@ -69,7 +69,6 @@ See [SETUP.md](SETUP.md) for Slack setup and deployment.
 | `eve_agent/agent/channels/` | Slack and HTTP entry points                       |
 | `eve_agent/agent/tools/`    | Deepline-backed tools exposed to the model        |
 | `eve_agent/agent/skills/`   | Skills synced from deepline-api                   |
-| `deepline/`                 | Play and monitor definitions                      |
 | `docs/`                     | Design notes and plans                            |
 
 ## Tests

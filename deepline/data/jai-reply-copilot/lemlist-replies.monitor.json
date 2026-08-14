@@ -1,9 +1,0 @@
-{
-  "key": "jai-lemlist-email-replies",
-  "tool": "lemlist.campaign_events",
-  "name": "Jai Lemlist email replies",
-  "payload": {
-    "event_type": "emailsReplied"
-  },
-  "controls": {}
-}
